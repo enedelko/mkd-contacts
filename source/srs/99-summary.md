@@ -24,3 +24,60 @@
 * **Производительность сложного кворума (CORE-06):** Агрегация «все валидированы и ЗА» может быть тяжёлой на больших домах; индексы и кеш обязательны.
 * **Конфликт владения 90 дней (CORE-03):** Транзакционная согласованность архивации и валидации; при высокой нагрузке — блокировки; тестирование сценариев с двумя одновременными валидациями по одному помещению.
 * **Белый список админов (ADM-01, ADM-04):** Первоначальное наполнение суперадмином — нужен bootstrap (миграция или конфиг при первом развёртывании), чтобы первый суперадмин мог войти.
+
+### 4. Схема БД (LOST-01)
+
+Каноническое описание — в [03-basic-admin.md](03-basic-admin.md), раздел LOST-01 «Модель данных». Ниже — сводка таблиц и связей.
+
+**Таблицы:**
+
+| Таблица | Назначение | Ключевые поля |
+|---------|------------|---------------|
+| **admins** | Белый список администраторов | telegram_id, role (administrator \| super_administrator), created_at |
+| **premises** | Помещения МКД (реестр) | кадастровый_номер (или id), площадь, подъезд, этаж, тип_помещения, номер_помещения (String), общая_площадь_МКД (опц.) |
+| **contacts** | Собственники/анкеты | premise_id (FK), is_owner; ПДн в зашифрованном виде (BE-02): phone, email, telegram_id, как_обращаться; зарегистрирован_в_электронном_доме (bool), согласия/версия политики, дата_создания, дата_последнего_изменения (CORE-02), ip, статус (pending / validated / inactive) |
+| **голосование_в_ОСС** | Участие в ОСС и голосование | contact_id (FK), позиция_за, формат_голоса, в_электронном_доме, проголосовал (bool) |
+
+**Связи:**
+
+```mermaid
+erDiagram
+    premises ||--o{ contacts : "premise_id"
+    contacts ||--o| oss_voting : "contact_id"
+    admins {
+      string telegram_id PK
+      string role
+      timestamp created_at
+    }
+    premises {
+      string cadastral_number PK
+      float area
+      string entrance
+      int floor
+      string premise_type
+      string premise_number
+    }
+    contacts {
+      uuid id PK
+      string premise_id FK
+      boolean is_owner
+      string phone_enc
+      string email_enc
+      string telegram_id_enc
+      boolean registered_in_ed
+      timestamp created_at
+      timestamp updated_at
+      string ip
+      string status
+    }
+    oss_voting {
+      uuid id PK
+      uuid contact_id FK
+      boolean vote_for
+      string vote_format
+      boolean in_ed
+      boolean voted
+    }
+```
+
+*Примечание:* `голосование_в_ОСС` на диаграмме — `oss_voting`; контактные поля phone/email/telegram_id хранятся в зашифрованном виде (BE-02). `premise_id` — ссылка на помещение (кадастровый_номер или внутренний id помещения), тип по реализации (string или uuid).
