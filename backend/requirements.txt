@@ -1,3 +1,12 @@
 fastapi>=0.109.0,<0.115.0
 uvicorn[standard]>=0.27.0,<0.32.0
 python-dotenv>=1.0.0,<2.0.0
+# LOST-01
+alembic>=1.13.0,<2.0.0
+sqlalchemy>=2.0.0,<3.0.0
+psycopg2-binary>=2.9.9,<3.0.0
+# BE-02
+cryptography>=42.0.0,<44.0.0
+# ADM-01
+pyjwt>=2.8.0,<3.0.0
+httpx>=0.26.0,<0.28.0

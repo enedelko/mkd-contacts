@@ -185,4 +185,13 @@
 
 ---
 
+### 8. Реализация (Implementation)
+
+| Компонент | Расположение |
+|-----------|--------------|
+| Миграции Alembic (LOST-01) | [backend/alembic/](../../backend/alembic/), [backend/alembic/versions/](../../backend/alembic/versions/) |
+| Шифрование и Blind Index (BE-02) | [backend/app/crypto.py](../../backend/app/crypto.py) |
+| Telegram OAuth и JWT (ADM-01) | [backend/app/auth_telegram.py](../../backend/app/auth_telegram.py), [backend/app/jwt_utils.py](../../backend/app/jwt_utils.py), [backend/app/routers/auth.py](../../backend/app/routers/auth.py) |
+| Super-admin API (ADM-04) | [backend/app/routers/superadmin.py](../../backend/app/routers/superadmin.py) |
+| Документация развёртывания и Bootstrap | [docs/deploy/03-basic-admin.md](../deploy/03-basic-admin.md) |
 

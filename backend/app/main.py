@@ -1,9 +1,13 @@
 """
 Кворум-МКД — Backend.
 Точка входа FastAPI. Запуск: uvicorn app.main:app --host 0.0.0.0 --port 8000
+LOST-01, BE-02, ADM-01, ADM-04 (03-basic-admin).
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.routers import auth, superadmin
 
 app = FastAPI(
     title="Кворум-МКД",
@@ -18,6 +22,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth.router)
+app.include_router(superadmin.router)
+
+
+@app.on_event("startup")
+def startup():
+    """BE-02: при наличии MASTER_KEY_PATH проверить ключ при старте (AF-1)."""
+    if os.environ.get("MASTER_KEY_PATH"):
+        from app.crypto import get_fernet
+        get_fernet()
 
 
 @app.get("/health")

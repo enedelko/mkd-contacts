@@ -24,8 +24,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: mkd-backend
+    env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-mkd}:${POSTGRES_PASSWORD:-mkd_secret}@db:5432/${POSTGRES_DB:-mkd_contacts}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      BLIND_INDEX_PEPPER: ${BLIND_INDEX_PEPPER:-}
+      MASTER_KEY_PATH: ${MASTER_KEY_PATH:-}
     ports:
       - "8000:8000"
     depends_on:

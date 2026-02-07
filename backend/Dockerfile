@@ -10,9 +10,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+RUN chmod +x /app/entrypoint.sh
 
 # Секрет мастер-ключа (BE-02) НЕ копируется в образ — подаётся через
 # Docker Secrets или bind mount при запуске. См. docs/deploy/BE-01-deployment.md
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/app/entrypoint.sh"]
