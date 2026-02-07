@@ -78,3 +78,8 @@ logs/
 *.docx
 *.xls
 *.xlsx
+
+# Node (frontend)
+node_modules/
+frontend/dist/
+.npm

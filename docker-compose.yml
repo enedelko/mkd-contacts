@@ -1,0 +1,53 @@
+# BE-01 — Инфраструктура: frontend, backend, db (SR-BE01-001)
+# Размещение в РФ: запуск на площадке внутри РФ, данные не выносятся за границу.
+# См. docs/deploy/BE-01-deployment.md
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: mkd-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mkd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mkd_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-mkd_contacts}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mkd} -d ${POSTGRES_DB:-mkd_contacts}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mkd-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mkd}:${POSTGRES_PASSWORD:-mkd_secret}@db:5432/${POSTGRES_DB:-mkd_contacts}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Мастер-ключ шифрования (BE-02) НЕ в репозитории. Варианты:
+    # 1) Docker Secrets: secrets: [encryption_key]; в swarm.
+    # 2) Bind mount: volumes: ["/host/path/to/encryption.key:/app/encryption.key:ro"]
+    # Контейнер db не имеет доступа к этому секрету.
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mkd-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    # Персистентные данные PostgreSQL (SR-BE01-002)
