@@ -111,3 +111,13 @@
 
 ---
 
+### 8. Реализация (Implementation)
+
+| Компонент | Расположение |
+|-----------|--------------|
+| Валидация форматов (CORE-02) | [backend/app/validators.py](../../backend/app/validators.py) |
+| Лимит и дедупликация при submit (CORE-02) | [backend/app/submit_service.py](../../backend/app/submit_service.py) |
+| Смена статуса контакта (VAL-01) | [backend/app/routers/admin_contacts.py](../../backend/app/routers/admin_contacts.py) — PATCH /api/admin/contacts/{contact_id}/status |
+| Таблица аудит-лога (VAL-01-005, BE-03) | [backend/alembic/versions/002_audit_log.py](../../backend/alembic/versions/002_audit_log.py) |
+| Документация развёртывания | [docs/deploy/06-validation.md](../deploy/06-validation.md) |
+
