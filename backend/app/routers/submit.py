@@ -19,7 +19,7 @@ router = APIRouter(tags=["submit"])
 
 
 class SubmitBody(BaseModel):
-    premise_id: str | int = Field(..., description="cadastral_number или id помещения")
+    premise_id: str = Field(..., description="Кадастровый номер помещения (cadastral_number)")
     is_owner: bool = Field(..., description="Я собственник")
     phone: str | None = None
     email: str | None = None

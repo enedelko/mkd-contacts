@@ -23,26 +23,26 @@ PENDING_LIMIT_PER_PREMISE = 10  # SR-CORE02-004
 SUBMIT_RATE_LIMIT_PER_HOUR = 10  # FE-04 AF-2: 10 записей/час (по IP)
 
 
-def _premise_id_from_request(premise_id: str | int, db) -> int | None:
-    """Преобразовать premise_id (cadastral_number или id) в premises.id."""
-    if isinstance(premise_id, int) or (isinstance(premise_id, str) and premise_id.isdigit()):
-        r = db.execute(text("SELECT id FROM premises WHERE id = :id"), {"id": int(premise_id)}).fetchone()
-        return r[0] if r else None
-    r = db.execute(text("SELECT id FROM premises WHERE cadastral_number = :cn"), {"cn": str(premise_id)}).fetchone()
-    return r[0] if r else None
+def _resolve_premise_cadastral(premise_id: str, db) -> str | None:
+    """Проверить существование помещения по кадастровому номеру; вернуть cadastral_number или None."""
+    r = db.execute(
+        text("SELECT 1 FROM premises WHERE cadastral_number = :cn"),
+        {"cn": premise_id},
+    ).fetchone()
+    return premise_id if r else None
 
 
-def _count_pending_on_premise(db, premise_db_id: int) -> int:
+def _count_pending_on_premise(db, premise_id: str) -> int:
     """Количество контактов со статусом pending по помещению (SR-CORE02-004)."""
     r = db.execute(
         text("SELECT COUNT(*) FROM contacts WHERE premise_id = :pid AND status = 'pending'"),
-        {"pid": premise_db_id},
+        {"pid": premise_id},
     ).fetchone()
     return r[0] or 0
 
 
 def submit_questionnaire(
-    premise_id: str | int,
+    premise_id: str,
     is_owner: bool,
     phone: str | None,
     email: str | None,
@@ -75,17 +75,17 @@ def submit_questionnaire(
         return {"success": False, "detail": "Captcha verification required"}
 
     with get_db() as db:
-        premise_db_id = _premise_id_from_request(premise_id, db)
-        if not premise_db_id:
+        cadastral = _resolve_premise_cadastral(premise_id, db)
+        if not cadastral:
             return {"success": False, "detail": "Premise not found", "code": "PREMISE_NOT_FOUND"}
 
-        if _count_pending_on_premise(db, premise_db_id) >= PENDING_LIMIT_PER_PREMISE:
+        if _count_pending_on_premise(db, cadastral) >= PENDING_LIMIT_PER_PREMISE:
             return {"success": False, "detail": "Premise limit exceeded: max 10 unvalidated contacts per premise", "code": "PREMISE_LIMIT_EXCEEDED"}
 
         phone_idx = blind_index_phone(phone) if phone else None
         email_idx = blind_index_email(email) if email else None
         telegram_id_idx = blind_index_telegram_id(telegram_id) if telegram_id else None
-        existing = _find_contact_by_indexes(db, premise_db_id, phone_idx, email_idx, telegram_id_idx)
+        existing = _find_contact_by_indexes(db, cadastral, phone_idx, email_idx, telegram_id_idx)
 
         row = {"phone": phone, "email": email, "telegram_id": telegram_id}
         collision_msg = _collision(existing, row, phone_idx, email_idx, telegram_id_idx)
@@ -117,7 +117,7 @@ def submit_questionnaire(
                 db.execute(text("UPDATE contacts SET updated_at = CURRENT_TIMESTAMP WHERE id = :id"), {"id": existing["id"]})
                 _upsert_oss_voting(existing["id"])
                 db.commit()
-                logger.info("Submit: updated contact id=%s premise_id=%s", existing["id"], premise_db_id)
+                logger.info("Submit: updated contact id=%s premise_id=%s", existing["id"], cadastral)
                 return {"success": True, "message": "Данные приняты"}
             need_enrich = []
             params = {"cid": existing["id"]}
@@ -132,7 +132,7 @@ def submit_questionnaire(
                 db.execute(text("UPDATE contacts SET " + set_clause + " WHERE id = :cid"), params)
             _upsert_oss_voting(existing["id"])
             db.commit()
-            logger.info("Submit: enriched contact id=%s premise_id=%s", existing["id"], premise_db_id)
+            logger.info("Submit: enriched contact id=%s premise_id=%s", existing["id"], cadastral)
             return {"success": True, "message": "Данные приняты"}
         else:
             db.execute(
@@ -141,14 +141,14 @@ def submit_questionnaire(
                     "VALUES (:pid, :io, :phone, :email, :tg, :pi, :ei, :ti, :re, :cv, 'pending', :ip)"
                 ),
                 {
-                    "pid": premise_db_id, "io": is_owner,
+                    "pid": cadastral, "io": is_owner,
                     "phone": phone_enc, "email": email_enc, "telegram_id": telegram_id_enc,
                     "pi": phone_idx, "ei": email_idx, "ti": telegram_id_idx,
                     "re": registered_ed, "cv": consent_version, "ip": client_ip,
                 },
             )
             db.flush()
-            contact_id_row = db.execute(text("SELECT id FROM contacts WHERE premise_id = :pid ORDER BY id DESC LIMIT 1"), {"pid": premise_db_id}).fetchone()
+            contact_id_row = db.execute(text("SELECT id FROM contacts WHERE premise_id = :pid ORDER BY id DESC LIMIT 1"), {"pid": cadastral}).fetchone()
             contact_id = contact_id_row[0] if contact_id_row else None
             if contact_id:
                 db.execute(
@@ -156,5 +156,5 @@ def submit_questionnaire(
                     {"cid": contact_id, "pf": str(vote_for).lower(), "vf": vote_format, "ve": registered_ed},
                 )
             db.commit()
-            logger.info("Submit: new contact premise_id=%s (no PII in log)", premise_db_id)
+            logger.info("Submit: new contact premise_id=%s (no PII in log)", cadastral)
             return {"success": True, "message": "Данные приняты"}

@@ -159,14 +159,15 @@ def parse_file(content: bytes, filename: str) -> tuple[list[str], list[str], lis
 
 def _get_or_create_premise(
     db, cadastral_number: str, area, entrance, floor, premises_type, premises_number: str
-) -> int:
-    """Получить id помещения по кадастровому номеру или создать (SR-CORE01-006)."""
+) -> str:
+    """Получить кадастровый номер помещения (существующего или созданного) (SR-CORE01-006)."""
+    # Проверка существования строки: не вставлять дубликат по PK при повторном появлении кадастра в импорте.
     row = db.execute(
-        text("SELECT id FROM premises WHERE cadastral_number = :cn"),
+        text("SELECT 1 FROM premises WHERE cadastral_number = :cn"),
         {"cn": cadastral_number},
     ).fetchone()
     if row:
-        return row[0]
+        return cadastral_number
     db.execute(
         text(
             "INSERT INTO premises (cadastral_number, area, entrance, floor, premises_type, premises_number) "
@@ -182,12 +183,11 @@ def _get_or_create_premise(
         },
     )
     db.flush()
-    r = db.execute(text("SELECT id FROM premises WHERE cadastral_number = :cn"), {"cn": cadastral_number}).fetchone()
-    return r[0]
+    return cadastral_number
 
 
-def _find_contact_by_indexes(db, premise_id: int, phone_idx, email_idx, telegram_id_idx) -> dict | None:
-    """Найти контакт по premise_id и любому из Blind Index. Возвращает id, индексы (для коллизии) и флаги заполненности (для обогащения SR-CORE01-014)."""
+def _find_contact_by_indexes(db, premise_id: str, phone_idx, email_idx, telegram_id_idx) -> dict | None:
+    """Найти контакт по premise_id (cadastral_number) и любому из Blind Index. Возвращает id, индексы (для коллизии) и флаги заполненности (для обогащения SR-CORE01-014)."""
     cols = "id, phone_idx, email_idx, telegram_id_idx, (COALESCE(trim(phone),'') != '') as has_phone, (COALESCE(trim(email),'') != '') as has_email, (COALESCE(trim(telegram_id),'') != '') as has_telegram_id, (COALESCE(trim(how_to_address),'') != '') as has_how"
     if phone_idx:
         r = db.execute(

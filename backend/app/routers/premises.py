@@ -71,7 +71,7 @@ def list_numbers(
     with get_db() as db:
         rows = db.execute(
             text(
-                "SELECT premises_number, cadastral_number, id FROM premises "
+                "SELECT premises_number, cadastral_number FROM premises "
                 "WHERE entrance = :e AND floor = :f AND premises_type = :pt "
                 "ORDER BY premises_number"
             ),
@@ -79,7 +79,7 @@ def list_numbers(
         ).fetchall()
     return {
         "premises": [
-            {"number": r[0] or "", "premise_id": r[1] or str(r[2]), "premise_db_id": r[2]}
+            {"number": r[0] or "", "premise_id": r[1] or ""}
             for r in rows
         ],
     }

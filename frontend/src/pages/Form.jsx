@@ -74,7 +74,7 @@ export default function Form() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          premise_id: premise.premise_id ?? premise.premise_db_id,
+          premise_id: premise.premise_id,
           is_owner: isOwner,
           phone: phone.trim() || null,
           email: email.trim() || null,

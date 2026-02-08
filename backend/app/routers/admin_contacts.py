@@ -23,7 +23,7 @@ VALID_STATUSES = ("validated", "inactive")
 
 
 class AdminContactBody(BaseModel):
-    premise_id: str | int = Field(..., description="id помещения или cadastral_number")
+    premise_id: str = Field(..., description="Кадастровый номер помещения (cadastral_number)")
     phone: str | None = None
     email: str | None = None
     telegram_id: str | None = None
@@ -32,12 +32,13 @@ class AdminContactBody(BaseModel):
     registered_ed: bool = False
 
 
-def _premise_db_id(premise_id: str | int, db) -> int | None:
-    if isinstance(premise_id, int) or (isinstance(premise_id, str) and premise_id.isdigit()):
-        r = db.execute(text("SELECT id FROM premises WHERE id = :id"), {"id": int(premise_id)}).fetchone()
-        return r[0] if r else None
-    r = db.execute(text("SELECT id FROM premises WHERE cadastral_number = :cn"), {"cn": str(premise_id)}).fetchone()
-    return r[0] if r else None
+def _resolve_premise_cadastral(premise_id: str, db) -> str | None:
+    """Проверить существование помещения по кадастровому номеру; вернуть cadastral_number или None."""
+    r = db.execute(
+        text("SELECT 1 FROM premises WHERE cadastral_number = :cn"),
+        {"cn": premise_id},
+    ).fetchone()
+    return premise_id if r else None
 
 
 @router.post("/contacts")
@@ -62,8 +63,8 @@ def create_contact(
         raise HTTPException(status_code=400, detail=f"Invalid telegram_id: {err}")
 
     with get_db() as db:
-        premise_db_id = _premise_db_id(body.premise_id, db)
-        if not premise_db_id:
+        cadastral = _resolve_premise_cadastral(body.premise_id, db)
+        if not cadastral:
             raise HTTPException(status_code=404, detail="Premise not found")
 
         phone_enc = encrypt(body.phone) if body.phone else None
@@ -79,7 +80,7 @@ def create_contact(
                 "registered_in_ed, status, ip) VALUES (:pid, true, :phone, :email, :tg, :pi, :ei, :ti, :re, 'validated', :ip)"
             ),
             {
-                "pid": premise_db_id,
+                "pid": cadastral,
                 "phone": phone_enc, "email": email_enc, "telegram_id": telegram_id_enc,
                 "pi": phone_idx, "ei": email_idx, "ti": telegram_id_idx,
                 "re": body.registered_ed,
@@ -87,7 +88,7 @@ def create_contact(
             },
         )
         db.flush()
-        r = db.execute(text("SELECT id FROM contacts WHERE premise_id = :pid ORDER BY id DESC LIMIT 1"), {"pid": premise_db_id}).fetchone()
+        r = db.execute(text("SELECT id FROM contacts WHERE premise_id = :pid ORDER BY id DESC LIMIT 1"), {"pid": cadastral}).fetchone()
         contact_id = r[0] if r else None
         if contact_id:
             db.execute(
@@ -96,7 +97,7 @@ def create_contact(
             )
         db.commit()
 
-    logger.info("ADM-03: contact created by sub=%s premise_id=%s contact_id=%s", payload.get("sub"), premise_db_id, contact_id)
+    logger.info("ADM-03: contact created by sub=%s premise_id=%s contact_id=%s", payload.get("sub"), cadastral, contact_id)
     return {"contact_id": contact_id, "status": "validated"}
 
 

@@ -135,14 +135,14 @@ export default function Premises() {
               <select
                 value={selectedPremise ? selectedPremise.premise_id : ''}
                 onChange={(e) => {
-                  const p = premises.find((x) => x.premise_id === e.target.value || x.premise_db_id === e.target.value)
+                  const p = premises.find((x) => x.premise_id === e.target.value)
                   setSelectedPremise(p || null)
                 }}
                 disabled={!type || loading}
               >
                 <option value="">— выберите —</option>
                 {premises.map((p) => (
-                  <option key={p.premise_id || p.premise_db_id} value={p.premise_id || p.premise_db_id}>
+                  <option key={p.premise_id} value={p.premise_id}>
                     {p.number}
                   </option>
                 ))}

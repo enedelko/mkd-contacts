@@ -11,10 +11,10 @@
 - `GET /api/premises/entrances` — список подъездов.
 - `GET /api/premises/floors?entrance=<значение>` — этажи по подъезду.
 - `GET /api/premises/types?entrance=&floor=` — типы помещений.
-- `GET /api/premises/numbers?entrance=&floor=&type=` — номера помещений и `premise_id` (cadastral_number или id).
+- `GET /api/premises/numbers?entrance=&floor=&type=` — номера помещений и `premise_id` (кадастровый номер).
 - `GET /api/premises/normalize?number=<строка>` — нормализация номера помещения (как при импорте CORE-01).
 
-Ответ по номерам: `{ "premises": [ { "number": "45", "premise_id": "...", "premise_db_id": 123 } ] }`.  
+Ответ по номерам: `{ "premises": [ { "number": "45", "premise_id": "77:01:0001001:123" } ] }`.  
 Фронт: страница **/premises** с каскадными выпадающими списками; после выбора номера — переход к форме **/form**.
 
 ---

@@ -30,17 +30,16 @@ def upgrade() -> None:
         '"role" IN (\'administrator\', \'super_administrator\')',
     )
 
-    # SR-LOST01-003: таблица помещений
+    # SR-LOST01-003: таблица помещений (PK = кадастровый номер, SRS)
     op.create_table(
         "premises",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("cadastral_number", sa.String(64), nullable=True),
+        sa.Column("cadastral_number", sa.String(64), nullable=False),
         sa.Column("area", sa.Numeric(12, 2), nullable=True),
         sa.Column("entrance", sa.String(16), nullable=True),
         sa.Column("floor", sa.String(16), nullable=True),
         sa.Column("premises_type", sa.String(64), nullable=True),
         sa.Column("premises_number", sa.String(32), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
+        sa.PrimaryKeyConstraint("cadastral_number"),
     )
     op.create_index("ix_premises_entrance_floor", "premises", ["entrance", "floor", "premises_type", "premises_number"], unique=False)
 
@@ -48,7 +47,7 @@ def upgrade() -> None:
     op.create_table(
         "contacts",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("premise_id", sa.Integer(), sa.ForeignKey("premises.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column("premise_id", sa.String(64), sa.ForeignKey("premises.cadastral_number", ondelete="RESTRICT"), nullable=False),
         sa.Column("is_owner", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("phone", sa.Text(), nullable=True),
         sa.Column("email", sa.Text(), nullable=True),

@@ -168,7 +168,7 @@ UI-форма для сбора контактов и позиции по ОСС
 * **Request:**
 ```json
 {
-  "premise_id": "uuid",
+  "premise_id": "77:01:0001001:123",
   "phone": "+7...",
   "email": null,
   "telegram_id": null,
