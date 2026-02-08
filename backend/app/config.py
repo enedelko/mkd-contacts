@@ -26,3 +26,8 @@ JWT_ACCESS_EXPIRE_SECONDS = 86400  # 24 h
 
 # CORS (опционально)
 CORS_ORIGINS = _env("CORS_ORIGINS", "*").split(",")
+
+# FE-04: Turnstile (Cloudflare). Если не задан — капча не проверяется (тест/разработка).
+TURNSTILE_SECRET_KEY = _env("TURNSTILE_SECRET_KEY", "")
+# Лимит отправок с одного IP в час (FE-04 AF-2)
+SUBMIT_RATE_LIMIT_PER_HOUR = int(_env("SUBMIT_RATE_LIMIT_PER_HOUR", "10") or "10")

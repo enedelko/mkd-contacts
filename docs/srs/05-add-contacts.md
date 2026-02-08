@@ -185,3 +185,17 @@ UI-форма для сбора контактов и позиции по ОСС
 
 ---
 
+### 8. Реализация (Implementation)
+
+| Компонент | Расположение |
+|-----------|--------------|
+| Валидация форматов (CORE-02) | [backend/app/validators.py](../../backend/app/validators.py) |
+| API фильтров помещений (FE-03) | [backend/app/routers/premises.py](../../backend/app/routers/premises.py) |
+| Нормализация номера (общая с CORE-01) | [backend/app/room_normalizer.py](../../backend/app/room_normalizer.py) |
+| Submit-сервис и лимиты (FE-04, CORE-02) | [backend/app/submit_service.py](../../backend/app/submit_service.py), [backend/app/rate_limit.py](../../backend/app/rate_limit.py), [backend/app/captcha.py](../../backend/app/captcha.py) |
+| POST /api/submit | [backend/app/routers/submit.py](../../backend/app/routers/submit.py) |
+| POST /api/admin/contacts (ADM-03) | [backend/app/routers/admin_contacts.py](../../backend/app/routers/admin_contacts.py) |
+| Страница выбора помещения (FE-03) | [frontend/src/pages/Premises.jsx](../../frontend/src/pages/Premises.jsx) |
+| Форма анкеты (FE-04) | [frontend/src/pages/Form.jsx](../../frontend/src/pages/Form.jsx) |
+| Документация развёртывания | [docs/deploy/05-add-contacts.md](../deploy/05-add-contacts.md) |
+

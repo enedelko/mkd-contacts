@@ -13,3 +13,14 @@ nav a { margin-right: 1rem; }
 .columns-compare ul { margin: 0; padding-left: 1.25rem; }
 .import-report { margin: 1rem 0; padding: 1rem; background: #d4edda; border-radius: 6px; }
 .import-error { margin: 1rem 0; padding: 1rem; background: #f8d7da; border-radius: 6px; }
+.premises-page .cascade-filters label { display: block; margin: 0.75rem 0; }
+.premises-page select { margin-left: 0.5rem; min-width: 12rem; }
+.premises-page .empty-message { color: #666; }
+.premises-page .selected-premise { margin-top: 1rem; padding: 1rem; background: #e8f5e9; border-radius: 6px; }
+.form-page .premise-display { font-weight: 600; }
+.form-page label { display: block; margin: 0.5rem 0; }
+.form-page fieldset { margin: 1rem 0; }
+.form-page .field-error { display: block; color: #c62828; font-size: 0.9rem; }
+.form-page .form-message.success { color: #2e7d32; }
+.form-page .form-message.error { color: #c62828; }
+.form-page .turnstile-wrap { margin: 1rem 0; }
