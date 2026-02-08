@@ -1,3 +1,15 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, sans-serif; padding: 1rem; }
-.app { max-width: 640px; margin: 0 auto; }
+.app { max-width: 720px; margin: 0 auto; }
+nav { margin: 0.5rem 0; }
+nav a { margin-right: 1rem; }
+.upload-page .instruction { margin: 1rem 0; padding: 1rem; background: #f5f5f5; border-radius: 6px; }
+.upload-page form { margin: 1rem 0; }
+.upload-page label { display: block; margin-bottom: 0.25rem; }
+.upload-page input[type="file"] { margin: 0.5rem 0; }
+.upload-page .help { display: block; font-size: 0.9rem; color: #666; }
+.structure-error { margin: 1rem 0; padding: 1rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; }
+.columns-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem; }
+.columns-compare ul { margin: 0; padding-left: 1.25rem; }
+.import-report { margin: 1rem 0; padding: 1rem; background: #d4edda; border-radius: 6px; }
+.import-error { margin: 1rem 0; padding: 1rem; background: #f8d7da; border-radius: 6px; }

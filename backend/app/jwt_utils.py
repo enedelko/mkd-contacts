@@ -46,3 +46,14 @@ def require_super_admin(credentials: HTTPAuthorizationCredentials | None) -> dic
     if payload.get("role") != "super_administrator":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super-admin only")
     return payload
+
+
+def require_admin(credentials: HTTPAuthorizationCredentials | None) -> dict[str, Any]:
+    """Зависимость: administrator или super_administrator (CORE-01, SR-CORE01-001)."""
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    payload = decode_token(credentials.credentials)
+    role = payload.get("role")
+    if role not in ("administrator", "super_administrator"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return payload

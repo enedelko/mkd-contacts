@@ -7,7 +7,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, superadmin
+from app.routers import auth, import_register, superadmin
 
 app = FastAPI(
     title="Кворум-МКД",
@@ -25,6 +25,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(superadmin.router)
+app.include_router(import_register.router)
 
 
 @app.on_event("startup")

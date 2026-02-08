@@ -144,3 +144,15 @@
 * **Accessibility:** Элемент выбора файла доступен с клавиатуры и с мобильных устройств.
 
 **Приоритет:** Повышен в связи с блокирующей ролью загрузки реестров для навигации и аналитики; реализация в связке с CORE-01.
+
+---
+
+### 8. Реализация (Implementation)
+
+| Компонент | Расположение |
+|-----------|--------------|
+| Нормализация номера помещения (SR-CORE01-018..023) | [backend/app/room_normalizer.py](../../backend/app/room_normalizer.py) |
+| Парсинг CSV/XLS/XLSX, валидация, импорт в БД (CORE-01) | [backend/app/import_register.py](../../backend/app/import_register.py) |
+| API POST /api/admin/import/register | [backend/app/routers/import_register.py](../../backend/app/routers/import_register.py) |
+| Страница загрузки (LOST-02) | [frontend/src/pages/Upload.jsx](../../frontend/src/pages/Upload.jsx) |
+| Документация развёртывания | [docs/deploy/04-import-chain.md](../deploy/04-import-chain.md) |
