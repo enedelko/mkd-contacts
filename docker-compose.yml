@@ -1,6 +1,6 @@
 # BE-01 — Инфраструктура: frontend, backend, db (SR-BE01-001)
-# Размещение в РФ: запуск на площадке внутри РФ, данные не выносятся за границу.
-# См. docs/deploy/BE-01-deployment.md
+# Перед контейнерами — Nginx на хосте (SR-BE01-006). Порты контейнеров только на localhost (SR-BE01-007).
+# См. docs/deploy/01-bootstrap.md и nginx-host.example.conf
 #
 # ВАЖНО: Значения по умолчанию (mkd_secret и т.д.) — только для разработки.
 # В production обязательно использовать .env с уникальными паролями и секретами.
@@ -35,7 +35,7 @@ services:
       BLIND_INDEX_PEPPER: ${BLIND_INDEX_PEPPER:-}
       MASTER_KEY_PATH: ${MASTER_KEY_PATH:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -51,7 +51,7 @@ services:
       dockerfile: Dockerfile
     container_name: mkd-frontend
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
     depends_on:
       - backend
     restart: unless-stopped

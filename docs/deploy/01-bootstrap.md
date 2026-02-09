@@ -1,4 +1,4 @@
-# BE-01 — Развёртывание инфраструктуры (РФ-контур)
+# 01 — Bootstrap и развёртывание (РФ-контур)
 
 Документация по развёртыванию трёх сервисов (frontend, backend, db) в соответствии с [02-BE-01-infrastructure.md](../srs/02-BE-01-infrastructure.md).
 
@@ -23,27 +23,32 @@
 ## 1. Требования
 
 - Docker и Docker Compose на хосте в **Российской Федерации** (данные не покидают территорию, 152-ФЗ).
-- Порты: 80 (frontend), 8000 (backend), 5432 (внутри сети, не публикуется).
+- **Nginx на хост-машине** — единственная публичная точка входа (SR-BE01-006). Порты 80 (и при необходимости 443 для HTTPS) слушает только хостовой Nginx.
+- Порты контейнеров привязаны к **localhost** (SR-BE01-007): frontend — 127.0.0.1:8080, backend — 127.0.0.1:8000; извне к ним обратиться нельзя. Доступ — только со стороны хостового Nginx. Порты 5432 (db) не публикуются, только внутренняя сеть Docker.
 
 ---
 
 ## 2. Быстрый старт
 
 ```bash
-# Клонировать репозиторий на сервер в РФ
-git clone <repo> mkd-contacts && cd mkd-contacts
+# Клонировать репозиторий на сервер в РФ (подставьте URL вашего репозитория)
+git clone https://github.com/enedelko/mkd-contacts.git mkd-contacts && cd mkd-contacts
 
 # Создать .env из примера и задать уникальные секреты (в production — обязательно)
 cp .env.example .env
 # Отредактировать .env: POSTGRES_PASSWORD (обязательно сменить!), POSTGRES_USER, POSTGRES_DB, JWT_SECRET и др.
 
-# Запуск (SR-BE01-001, сценарий Main Success)
+# Настроить Nginx на хосте (пример конфига — nginx-host.example.conf в этой папке)
+# Скопировать в /etc/nginx/sites-available/, включить сайт, перезагрузить nginx.
+
+# Запуск контейнеров (SR-BE01-001)
 docker compose up -d
 
-# Проверка
+# Проверка (через хостовой Nginx — после настройки)
 docker compose ps
 curl -s http://localhost/ | head -5
-curl -s http://localhost:8000/health
+curl -s http://localhost/api/health
+# Локально без Nginx (только для отладки): curl -s http://127.0.0.1:8080/ и http://127.0.0.1:8000/health
 ```
 
 Ожидаемое время старта всех контейнеров — до 2 минут на типовом железе (NFR Performance).
@@ -52,11 +57,12 @@ curl -s http://localhost:8000/health
 
 ## 3. Сервисы
 
-| Сервис    | Образ/сборка      | Назначение                          |
-|-----------|-------------------|-------------------------------------|
-| **db**    | postgres:15-alpine| PostgreSQL, персистентный том pgdata|
-| **backend** | backend/Dockerfile | FastAPI под Uvicorn, порт 8000    |
-| **frontend** | frontend/Dockerfile | Nginx + статический бандл React, порт 80 |
+| Компонент | Описание |
+|-----------|----------|
+| **Nginx (хост)** | Слушает 80/443, проксирует `/` → 127.0.0.1:8080, `/api/` → 127.0.0.1:8000. Пример: [nginx-host.example.conf](nginx-host.example.conf). |
+| **db** | postgres:15-alpine, персистентный том pgdata. Порт 5432 только во внутренней сети Docker. |
+| **backend** | FastAPI под Uvicorn. Публикуется только 127.0.0.1:8000 (доступен только хостовому Nginx). |
+| **frontend** | Nginx в контейнере + статический бандл React. Публикуется только 127.0.0.1:8080 (доступен только хостовому Nginx). |
 
 ---
 
@@ -80,14 +86,20 @@ curl -s http://localhost:8000/health
 
 ---
 
-## 6. Проблемы (Alternative Flows)
+## 6. Хостовой Nginx (SR-BE01-006, SR-BE01-007)
+
+- Установка: `apt install nginx` (или аналог). Пример конфигурации — [nginx-host.example.conf](nginx-host.example.conf).
+- Конфиг разместить в `/etc/nginx/sites-available/mkd-contacts`, создать симлинк в `sites-enabled`, проверить `nginx -t`, перезагрузить `systemctl reload nginx`.
+- Публичный доступ к приложению — только через этот Nginx. Порты 8080 и 8000 на localhost снаружи недоступны.
+
+## 7. Проблемы (Alternative Flows)
 
 - **AF-1 (образ недоступен):** логировать ошибку, собрать образы локально (`docker compose build`).
-- **AF-2 (порт занят):** изменить маппинг в `docker-compose.yml` (например, `"8080:80"` для frontend).
+- **AF-2 (порт занят):** если заняты 80/443 — править конфиг хостового Nginx; если 127.0.0.1:8080 или 127.0.0.1:8000 — изменить маппинг в `docker-compose.yml` и соответствующие `proxy_pass` в nginx-host конфиге.
 
 ---
 
-## 7. Восстановление (RTO &lt; 24 ч)
+## 8. Восстановление (RTO &lt; 24 ч)
 
 - Данные БД хранятся в томе `pgdata`; при пересоздании контейнеров том сохраняется.
 - Регулярное резервное копирование тома/дампа PostgreSQL и процедуры восстановления оформить отдельно (OPS, бэклог).

@@ -13,7 +13,7 @@ COPY . .
 RUN chmod +x /app/entrypoint.sh
 
 # Секрет мастер-ключа (BE-02) НЕ копируется в образ — подаётся через
-# Docker Secrets или bind mount при запуске. См. docs/deploy/BE-01-deployment.md
+# Docker Secrets или bind mount при запуске. См. docs/deploy/01-bootstrap.md
 EXPOSE 8000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
