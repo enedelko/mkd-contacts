@@ -12,8 +12,18 @@ function Home() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   useEffect(() => {
-    if (window.opener && searchParams.get('hash') && searchParams.get('id')) {
+    // Редирект из popup: Telegram может вернуть на origin с параметрами в hash
+    if (!window.opener) return
+    const fromQuery = searchParams.get('hash') && searchParams.get('id')
+    if (fromQuery) {
       navigate(`/auth/callback?${searchParams.toString()}`, { replace: true })
+      return
+    }
+    const hashPart = window.location.hash?.slice(1)
+    if (!hashPart) return
+    const hashParams = new URLSearchParams(hashPart)
+    if (hashParams.get('hash') && hashParams.get('id')) {
+      navigate(`/auth/callback?${hashParams.toString()}`, { replace: true })
     }
   }, [searchParams, navigate])
   return <p>Фронтенд (React + Vite). Выберите помещение или загрузку реестра.</p>

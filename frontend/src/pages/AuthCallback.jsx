@@ -1,33 +1,48 @@
 /**
  * ADM-01: Callback после редиректа от Telegram OAuth.
- * Если открыто в popup (window.opener) — передаём параметры в окно-родитель и закрываем popup.
- * Иначе (редирект в том же окне) — запрашиваем JWT у backend, сохраняем токен и редиректим на главную.
+ * Параметры могут прийти в query (?hash=...&id=...) или в hash (#hash=...&id=...) — учитываем оба варианта.
+ * Если открыто в popup (window.opener) — передаём параметры в окно-родитель, показываем статус и закрываем popup с задержкой.
+ * Иначе — запрашиваем JWT у backend, сохраняем токен и редиректим на главную.
  */
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+
+function getTelegramParams(searchParams) {
+  let hash = searchParams.get('hash')
+  let id = searchParams.get('id')
+  if (hash && id) return Object.fromEntries([...searchParams.entries()])
+  const hashPart = typeof window !== 'undefined' ? window.location.hash?.slice(1) : ''
+  if (!hashPart) return null
+  const fromHash = new URLSearchParams(hashPart)
+  hash = fromHash.get('hash')
+  id = fromHash.get('id')
+  if (!hash || !id) return null
+  return Object.fromEntries([...fromHash.entries()])
+}
 
 export default function AuthCallback() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [error, setError] = useState(null)
+  const [popupStatus, setPopupStatus] = useState(null) // 'sent' | null
 
   useEffect(() => {
-    const hash = searchParams.get('hash')
-    const id = searchParams.get('id')
-    if (!hash || !id) {
-      setError('Нет данных от Telegram')
+    const params = getTelegramParams(searchParams)
+    if (!params) {
+      setError('Нет данных от Telegram (проверьте URL: query или hash)')
       return
     }
-
-    const params = Object.fromEntries([...searchParams.entries()])
 
     if (window.opener) {
       window.opener.postMessage({ type: 'mkd-telegram-auth', params }, window.location.origin)
-      window.close()
-      return
+      setPopupStatus('sent')
+      const t = setTimeout(() => {
+        window.close()
+      }, 20000)
+      return () => clearTimeout(t)
     }
 
-    const query = searchParams.toString()
+    const query = new URLSearchParams(params).toString()
     fetch(`/api/auth/telegram/callback?${query}`)
       .then((res) => res.json())
       .then((data) => {
@@ -47,6 +62,13 @@ export default function AuthCallback() {
       <div className="auth-callback-page">
         <p className="auth-error">{error}</p>
         <a href="/">На главную</a>
+      </div>
+    )
+  }
+  if (popupStatus === 'sent') {
+    return (
+      <div className="auth-callback-page">
+        <p>Данные отправлены в окно входа. Окно закроется через 20 сек.</p>
       </div>
     )
   }
