@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Link } from 'react-router-dom'
+import { Routes, Route, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import Upload from './pages/Upload'
 import Premises from './pages/Premises'
 import Form from './pages/Form'
@@ -7,6 +7,17 @@ import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
 
 const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('mkd_access_token') : null)
+
+function Home() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (window.opener && searchParams.get('hash') && searchParams.get('id')) {
+      navigate(`/auth/callback?${searchParams.toString()}`, { replace: true })
+    }
+  }, [searchParams, navigate])
+  return <p>Фронтенд (React + Vite). Выберите помещение или загрузку реестра.</p>
+}
 
 function App() {
   const [token, setToken] = useState(getToken)
@@ -28,7 +39,7 @@ function App() {
         )}
       </nav>
       <Routes>
-        <Route path="/" element={<p>Фронтенд (React + Vite). Выберите помещение или загрузку реестра.</p>} />
+        <Route path="/" element={<Home />} />
         <Route path="/premises" element={<Premises />} />
         <Route path="/form" element={<Form />} />
         <Route path="/login" element={<Login />} />

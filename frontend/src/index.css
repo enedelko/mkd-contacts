@@ -26,5 +26,6 @@ nav a { margin-right: 1rem; }
 .form-page .turnstile-wrap { margin: 1rem 0; }
 .login-page { margin: 1rem 0; }
 .login-page .login-error { color: #c62828; }
+.login-page .login-telegram-btn { margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
 .auth-callback-page { margin: 1rem 0; }
 .auth-callback-page .auth-error { color: #c62828; margin-bottom: 0.5rem; }

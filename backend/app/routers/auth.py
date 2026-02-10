@@ -1,18 +1,41 @@
 """
 ADM-01: Telegram OAuth callback, выдача JWT (white-list из admins).
+Эндпоинт bot-id для построения URL входа в новом окне (popup) вместо iframe.
 """
 import logging
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from app.auth_telegram import get_admin_by_telegram_id, verify_telegram_login
+from app.config import TELEGRAM_BOT_TOKEN
 from app.jwt_utils import create_access_token
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+@router.get("/telegram/bot-id")
+def telegram_bot_id() -> JSONResponse:
+    """
+    Возвращает числовой id бота для построения URL oauth.telegram.org (вход в popup, без iframe).
+    Вызов getMe через Telegram Bot API.
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        return JSONResponse(status_code=503, content={"detail": "Telegram bot not configured"})
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            r = client.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getMe")
+            data = r.json()
+        if not data.get("ok") or not data.get("result"):
+            return JSONResponse(status_code=503, content={"detail": "Telegram API error"})
+        return JSONResponse(content={"bot_id": data["result"]["id"]})
+    except Exception as e:
+        logger.warning("getMe failed: %s", e)
+        return JSONResponse(status_code=503, content={"detail": "Telegram API unavailable"})
 
 
 @router.get("/telegram/callback")

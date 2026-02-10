@@ -1,6 +1,7 @@
 /**
- * ADM-01: Callback после редиректа от Telegram Login Widget.
- * Читает query-параметры, запрашивает JWT у backend, сохраняет токен и редиректит на главную.
+ * ADM-01: Callback после редиректа от Telegram OAuth.
+ * Если открыто в popup (window.opener) — передаём параметры в окно-родитель и закрываем popup.
+ * Иначе (редирект в том же окне) — запрашиваем JWT у backend, сохраняем токен и редиректим на главную.
  */
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -17,6 +18,15 @@ export default function AuthCallback() {
       setError('Нет данных от Telegram')
       return
     }
+
+    const params = Object.fromEntries([...searchParams.entries()])
+
+    if (window.opener) {
+      window.opener.postMessage({ type: 'mkd-telegram-auth', params }, window.location.origin)
+      window.close()
+      return
+    }
+
     const query = searchParams.toString()
     fetch(`/api/auth/telegram/callback?${query}`)
       .then((res) => res.json())
