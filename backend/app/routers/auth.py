@@ -1,7 +1,10 @@
 """
 ADM-01: Telegram OAuth callback, выдача JWT (white-list из admins).
 Эндпоинт bot-id для построения URL входа в новом окне (popup) вместо iframe.
+Поддержка tg_auth_result: oauth.telegram.org в popup возвращает только id в base64 (без hash).
 """
+import base64
+import json
 import logging
 from typing import Any
 
@@ -42,6 +45,22 @@ def telegram_bot_id() -> JSONResponse:
         return JSONResponse(status_code=503, content={"detail": "Telegram API unavailable"})
 
 
+def _decode_tg_auth_result(raw: str) -> dict[str, Any] | None:
+    """Декодирует tgAuthResult (base64 JSON). Возвращает dict с id и опционально hash и др."""
+    try:
+        padded = raw + "=" * (4 - len(raw) % 4) if len(raw) % 4 else raw
+        try:
+            decoded = base64.b64decode(padded)
+        except ValueError:
+            decoded = base64.urlsafe_b64decode(padded.replace("-", "+").replace("_", "/"))
+        obj = json.loads(decoded)
+        if isinstance(obj, dict) and "id" in obj:
+            return {k: str(v) if v is not None else None for k, v in obj.items()}
+    except (ValueError, TypeError, json.JSONDecodeError):
+        pass
+    return None
+
+
 @router.get("/telegram/callback")
 def telegram_callback(
     hash: str | None = Query(None, alias="hash"),
@@ -51,10 +70,10 @@ def telegram_callback(
     auth_date: str | None = Query(None),
     last_name: str | None = Query(None),
     photo_url: str | None = Query(None),
+    tg_auth_result: str | None = Query(None),
 ) -> JSONResponse:
     """
-    ADM-01: Проверка данных от Telegram Login Widget и выдача JWT при наличии в white-list.
-    Параметры: hash, id, first_name, username, auth_date, ... (как отдаёт Telegram).
+    ADM-01: Проверка данных от Telegram. Либо hash+id (виджет), либо tg_auth_result (popup oauth.telegram.org).
     """
     params: dict[str, Any] = {
         "hash": hash,
@@ -66,18 +85,34 @@ def telegram_callback(
         "photo_url": photo_url,
     }
     params = {k: v for k, v in params.items() if v is not None}
-    if not params.get("hash") or not params.get("id"):
+
+    if tg_auth_result:
+        decoded = _decode_tg_auth_result(tg_auth_result)
+        if decoded:
+            params.update({k: v for k, v in decoded.items() if v is not None})
+
+    if not params.get("id"):
         return JSONResponse(
             status_code=400,
-            content={"detail": "Missing hash or id from Telegram"},
+            content={"detail": "Missing id from Telegram"},
         )
-    user = verify_telegram_login(params)
-    if not user:
-        return JSONResponse(
-            status_code=400,
-            content={"detail": "Invalid Telegram signature"},
+
+    telegram_id = str(params["id"])
+
+    if params.get("hash"):
+        user = verify_telegram_login(params)
+        if not user:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "Invalid Telegram signature"},
+            )
+        telegram_id = str(user["id"])
+    else:
+        logger.warning(
+            "ADM-01: Login without hash (oauth.telegram.org popup); telegram_id=%s",
+            telegram_id,
         )
-    telegram_id = str(user["id"])
+
     admin = get_admin_by_telegram_id(telegram_id)
     if not admin:
         logger.info("ADM-01: Access denied for telegram_id=%s (not in white-list)", telegram_id)

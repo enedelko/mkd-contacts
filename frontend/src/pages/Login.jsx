@@ -1,6 +1,7 @@
 /**
  * ADM-01: Вход через Telegram.
- * Popup открывает нашу страницу /login-widget с виджетом (redirect с hash). Редирект oauth.telegram.org возвращал только tgAuthResult без hash.
+ * Открываем oauth.telegram.org в новом окне (popup) или в этой вкладке — без iframe, без CSP.
+ * Telegram возвращает tgAuthResult (без hash); при наличии hash обрабатываем в AuthCallback.
  */
 import { useState, useEffect, useCallback } from 'react'
 
@@ -26,8 +27,9 @@ export default function Login() {
   const handleMessage = useCallback((event) => {
     if (event.origin !== window.location.origin) return
     if (event.data?.type !== 'mkd-telegram-auth' || !event.data?.params) return
-    const qs = new URLSearchParams(event.data.params).toString()
-    fetch(`/api/auth/telegram/callback?${qs}`)
+    const qs = new URLSearchParams(event.data.params)
+    if (event.data.rawTgAuthResult) qs.set('tg_auth_result', event.data.rawTgAuthResult)
+    fetch(`/api/auth/telegram/callback?${qs.toString()}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.access_token) {
@@ -46,7 +48,11 @@ export default function Login() {
     return () => window.removeEventListener('message', handleMessage)
   }, [handleMessage])
 
-  const widgetUrl = `${window.location.origin}/login-widget`
+  const getOAuthUrl = () => {
+    const origin = window.location.origin
+    const returnTo = `${origin}/auth/callback`
+    return `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${encodeURIComponent(origin)}&request_access=write&return_to=${encodeURIComponent(returnTo)}`
+  }
 
   const openPopup = () => {
     if (!botId) return
@@ -54,7 +60,7 @@ export default function Login() {
     const left = Math.round((window.screen.width - POPUP_WIDTH) / 2)
     const top = Math.round((window.screen.height - POPUP_HEIGHT) / 2)
     window.open(
-      widgetUrl,
+      getOAuthUrl(),
       'telegram_oauth',
       `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},left=${left},top=${top},scrollbars=yes`
     )
@@ -63,7 +69,7 @@ export default function Login() {
   const openInSameTab = () => {
     if (!botId) return
     setError(null)
-    window.location.href = widgetUrl
+    window.location.href = getOAuthUrl()
   }
 
   return (

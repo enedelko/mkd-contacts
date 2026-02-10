@@ -21,26 +21,28 @@ function parseTgAuthResult(base64Str) {
   }
 }
 
+/**
+ * Возвращает { params, rawTgAuthResult } или null.
+ * rawTgAuthResult — сырая строка tgAuthResult из hash (для бэкенда при отсутствии hash).
+ */
 function getTelegramParams(searchParams) {
   let hash = searchParams.get('hash')
   let id = searchParams.get('id')
-  if (hash && id) return Object.fromEntries([...searchParams.entries()])
+  if (hash && id) return { params: Object.fromEntries([...searchParams.entries()]), rawTgAuthResult: null }
   const hashPart = typeof window !== 'undefined' ? window.location.hash?.slice(1) : ''
   if (!hashPart) return null
   const fromHash = new URLSearchParams(hashPart)
   hash = fromHash.get('hash')
   id = fromHash.get('id')
-  if (hash && id) return Object.fromEntries([...fromHash.entries()])
+  if (hash && id) return { params: Object.fromEntries([...fromHash.entries()]), rawTgAuthResult: null }
   const tgAuthResult = fromHash.get('tgAuthResult')
   if (tgAuthResult) {
     const obj = parseTgAuthResult(tgAuthResult)
     if (obj) {
       const params = { ...obj }
-      if (params.hash && params.id) return params
-      if (params.id != null) {
-        params.id = String(params.id)
-        return params
-      }
+      if (params.id != null) params.id = String(params.id)
+      if (params.hash && params.id) return { params, rawTgAuthResult: null }
+      if (params.id) return { params, rawTgAuthResult: tgAuthResult }
     }
   }
   return null
@@ -53,31 +55,29 @@ export default function AuthCallback() {
   const [popupStatus, setPopupStatus] = useState(null) // 'sent' | null
 
   useEffect(() => {
-    const params = getTelegramParams(searchParams)
-    if (!params) {
+    const parsed = getTelegramParams(searchParams)
+    if (!parsed) {
       setError('Нет данных от Telegram (проверьте URL: query, hash или tgAuthResult)')
       return
     }
-    if (!params.hash && params.id) {
-      setError(
-        'Telegram OAuth вернул данные без подписи (hash). Сервер не может проверить вход. ' +
-        'Используйте кнопку «Войти через Telegram» в этом же окне или попробуйте снова.'
-      )
-      return
-    }
-    if (!params.hash || !params.id) {
-      setError('Не хватает данных от Telegram (нужны hash и id)')
+    const { params, rawTgAuthResult } = parsed
+    if (!params.id) {
+      setError('Не хватает данных от Telegram (нужен id)')
       return
     }
 
     if (window.opener) {
-      window.opener.postMessage({ type: 'mkd-telegram-auth', params }, window.location.origin)
+      window.opener.postMessage(
+        { type: 'mkd-telegram-auth', params, rawTgAuthResult },
+        window.location.origin
+      )
       setPopupStatus('sent')
       return
     }
 
-    const query = new URLSearchParams(params).toString()
-    fetch(`/api/auth/telegram/callback?${query}`)
+    const query = new URLSearchParams(params)
+    if (rawTgAuthResult) query.set('tg_auth_result', rawTgAuthResult)
+    fetch(`/api/auth/telegram/callback?${query.toString()}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.access_token) {
