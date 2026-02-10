@@ -24,3 +24,7 @@ nav a { margin-right: 1rem; }
 .form-page .form-message.success { color: #2e7d32; }
 .form-page .form-message.error { color: #c62828; }
 .form-page .turnstile-wrap { margin: 1rem 0; }
+.login-page { margin: 1rem 0; }
+.login-page .login-error { color: #c62828; }
+.auth-callback-page { margin: 1rem 0; }
+.auth-callback-page .auth-error { color: #c62828; margin-bottom: 0.5rem; }
