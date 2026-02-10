@@ -1,11 +1,25 @@
 /**
  * ADM-01: Callback после редиректа от Telegram OAuth.
- * Параметры могут прийти в query (?hash=...&id=...) или в hash (#hash=...&id=...) — учитываем оба варианта.
- * Если открыто в popup (window.opener) — передаём параметры в окно-родитель, показываем статус; окно закрывается только по кнопке (чтобы успеть F12).
- * Иначе — запрашиваем JWT у backend, сохраняем токен и редиректим на главную.
+ * Поддерживаем форматы:
+ * - query: ?hash=...&id=...
+ * - hash: #hash=...&id=...
+ * - tgAuthResult: #tgAuthResult=<base64> (JSON с полями id, hash, auth_date, first_name и т.д.)
+ * Если открыто в popup — передаём параметры в окно-родитель; окно закрывается только по кнопке.
  */
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+
+function parseTgAuthResult(base64Str) {
+  if (!base64Str || typeof atob !== 'function') return null
+  try {
+    const json = atob(base64Str.replace(/-/g, '+').replace(/_/g, '/'))
+    const obj = JSON.parse(json)
+    if (obj && typeof obj.id !== 'undefined') return obj
+    return null
+  } catch {
+    return null
+  }
+}
 
 function getTelegramParams(searchParams) {
   let hash = searchParams.get('hash')
@@ -16,8 +30,20 @@ function getTelegramParams(searchParams) {
   const fromHash = new URLSearchParams(hashPart)
   hash = fromHash.get('hash')
   id = fromHash.get('id')
-  if (!hash || !id) return null
-  return Object.fromEntries([...fromHash.entries()])
+  if (hash && id) return Object.fromEntries([...fromHash.entries()])
+  const tgAuthResult = fromHash.get('tgAuthResult')
+  if (tgAuthResult) {
+    const obj = parseTgAuthResult(tgAuthResult)
+    if (obj) {
+      const params = { ...obj }
+      if (params.hash && params.id) return params
+      if (params.id != null) {
+        params.id = String(params.id)
+        return params
+      }
+    }
+  }
+  return null
 }
 
 export default function AuthCallback() {
@@ -29,7 +55,18 @@ export default function AuthCallback() {
   useEffect(() => {
     const params = getTelegramParams(searchParams)
     if (!params) {
-      setError('Нет данных от Telegram (проверьте URL: query или hash)')
+      setError('Нет данных от Telegram (проверьте URL: query, hash или tgAuthResult)')
+      return
+    }
+    if (!params.hash && params.id) {
+      setError(
+        'Telegram OAuth вернул данные без подписи (hash). Сервер не может проверить вход. ' +
+        'Используйте кнопку «Войти через Telegram» в этом же окне или попробуйте снова.'
+      )
+      return
+    }
+    if (!params.hash || !params.id) {
+      setError('Не хватает данных от Telegram (нужны hash и id)')
       return
     }
 

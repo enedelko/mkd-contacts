@@ -1,6 +1,6 @@
 /**
  * ADM-01: Вход через Telegram.
- * OAuth открывается в новом окне (popup), чтобы обойти CSP frame-ancestors при работе с нестандартным портом.
+ * Popup открывает нашу страницу /login-widget с виджетом (redirect с hash). Редирект oauth.telegram.org возвращал только tgAuthResult без hash.
  */
 import { useState, useEffect, useCallback } from 'react'
 
@@ -46,20 +46,15 @@ export default function Login() {
     return () => window.removeEventListener('message', handleMessage)
   }, [handleMessage])
 
-  const getOAuthUrl = () => {
-    const origin = window.location.origin
-    const returnTo = `${origin}/auth/callback`
-    return `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${encodeURIComponent(origin)}&request_access=write&return_to=${encodeURIComponent(returnTo)}`
-  }
+  const widgetUrl = `${window.location.origin}/login-widget`
 
   const openPopup = () => {
     if (!botId) return
     setError(null)
-    const url = getOAuthUrl()
     const left = Math.round((window.screen.width - POPUP_WIDTH) / 2)
     const top = Math.round((window.screen.height - POPUP_HEIGHT) / 2)
     window.open(
-      url,
+      widgetUrl,
       'telegram_oauth',
       `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},left=${left},top=${top},scrollbars=yes`
     )
@@ -68,7 +63,7 @@ export default function Login() {
   const openInSameTab = () => {
     if (!botId) return
     setError(null)
-    window.location.href = getOAuthUrl()
+    window.location.href = widgetUrl
   }
 
   return (

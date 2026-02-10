@@ -4,6 +4,7 @@ import Upload from './pages/Upload'
 import Premises from './pages/Premises'
 import Form from './pages/Form'
 import Login from './pages/Login'
+import LoginWidget from './pages/LoginWidget'
 import AuthCallback from './pages/AuthCallback'
 
 const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('mkd_access_token') : null)
@@ -24,6 +25,10 @@ function Home() {
     const hashParams = new URLSearchParams(hashPart)
     if (hashParams.get('hash') && hashParams.get('id')) {
       navigate(`/auth/callback?${hashParams.toString()}`, { replace: true })
+      return
+    }
+    if (hashParams.get('tgAuthResult')) {
+      navigate(`/auth/callback${window.location.hash}`, { replace: true })
     }
   }, [searchParams, navigate])
   return <p>Фронтенд (React + Vite). Выберите помещение или загрузку реестра.</p>
@@ -53,6 +58,7 @@ function App() {
         <Route path="/premises" element={<Premises />} />
         <Route path="/form" element={<Form />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/login-widget" element={<LoginWidget />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/upload" element={<Upload />} />
       </Routes>

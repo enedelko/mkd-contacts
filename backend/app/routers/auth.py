@@ -32,7 +32,11 @@ def telegram_bot_id() -> JSONResponse:
             data = r.json()
         if not data.get("ok") or not data.get("result"):
             return JSONResponse(status_code=503, content={"detail": "Telegram API error"})
-        return JSONResponse(content={"bot_id": data["result"]["id"]})
+        result = data["result"]
+        return JSONResponse(content={
+            "bot_id": result["id"],
+            "bot_username": result.get("username"),
+        })
     except Exception as e:
         logger.warning("getMe failed: %s", e)
         return JSONResponse(status_code=503, content={"detail": "Telegram API unavailable"})
