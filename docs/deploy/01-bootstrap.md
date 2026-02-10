@@ -84,6 +84,15 @@ curl -s http://localhost/api/health
     `-v /secure/encryption.key:/app/encryption.key:ro`
 - Контейнер **db** (PostgreSQL) **не должен** иметь доступа к секрету или к директории с ключами шифрования (архитектурная изоляция).
 
+### Переменные фронта: VITE_TELEGRAM_BOT_USERNAME
+
+- **Зачем:** Кнопка «Войти через Telegram» на странице /login — это [Telegram Login Widget](https://core.telegram.org/widgets/login). Виджету нужен **username бота** (например `MyMkdBot`), а не токен. Токен (`TELEGRAM_BOT_TOKEN`) используется только на backend и не должен попадать в браузер.
+- **Как указать:**
+  - **Локально (npm run dev):** в корневом `.env` или в `frontend/.env` добавить строку `VITE_TELEGRAM_BOT_USERNAME=ИмяВашегоБота` (без @). После изменения перезапустить `npm run dev`.
+  - **Docker:** переменные `VITE_*` подставляются в бандл **на этапе сборки**. В `docker-compose.yml` для сервиса frontend задан build-arg из переменной окружения: при `docker compose build` берётся значение из `.env` (строка `VITE_TELEGRAM_BOT_USERNAME=MyMkdBot`). Либо передать вручную:  
+    `docker compose build --build-arg VITE_TELEGRAM_BOT_USERNAME=MyMkdBot frontend`.  
+    Имя бота совпадает с тем, для которого выдан `TELEGRAM_BOT_TOKEN` в BotFather.
+
 ---
 
 ## 6. Хостовой Nginx (SR-BE01-006, SR-BE01-007)

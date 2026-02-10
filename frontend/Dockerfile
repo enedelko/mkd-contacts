@@ -2,6 +2,10 @@
 # Stage 1: build
 FROM node:20-alpine AS builder
 
+# Имя бота для Telegram Login Widget (подставляется в бандл при сборке)
+ARG VITE_TELEGRAM_BOT_USERNAME
+ENV VITE_TELEGRAM_BOT_USERNAME=$VITE_TELEGRAM_BOT_USERNAME
+
 WORKDIR /app
 
 COPY package.json ./
