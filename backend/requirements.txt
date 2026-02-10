@@ -13,3 +13,4 @@ httpx>=0.26.0,<0.28.0
 # CORE-01 import (CSV, XLS/XLSX)
 openpyxl>=3.1.0,<3.2.0
 xlrd>=1.2.0,<2.0.0
+python-multipart
