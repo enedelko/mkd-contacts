@@ -1,10 +1,6 @@
 /**
- * ADM-01: Callback после редиректа от Telegram OAuth.
- * Поддерживаем форматы:
- * - query: ?hash=...&id=...
- * - hash: #hash=...&id=...
- * - tgAuthResult: #tgAuthResult=<base64> (JSON с полями id, hash, auth_date, first_name и т.д.)
- * Если открыто в popup — передаём параметры в окно-родитель; окно закрывается только по кнопке.
+ * ADM-01: Callback после редиректа от Telegram OAuth (вход в текущем окне).
+ * Поддерживаем форматы: query (?hash=...&id=...), hash (#hash=...&id=...), tgAuthResult (#tgAuthResult=<base64>).
  */
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -52,7 +48,6 @@ export default function AuthCallback() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [error, setError] = useState(null)
-  const [popupStatus, setPopupStatus] = useState(null) // 'sent' | null
 
   useEffect(() => {
     const parsed = getTelegramParams(searchParams)
@@ -63,15 +58,6 @@ export default function AuthCallback() {
     const { params, rawTgAuthResult } = parsed
     if (!params.id) {
       setError('Не хватает данных от Telegram (нужен id)')
-      return
-    }
-
-    if (window.opener) {
-      window.opener.postMessage(
-        { type: 'mkd-telegram-auth', params, rawTgAuthResult },
-        window.location.origin
-      )
-      setPopupStatus('sent')
       return
     }
 
@@ -96,15 +82,6 @@ export default function AuthCallback() {
       <div className="auth-callback-page">
         <p className="auth-error">{error}</p>
         <a href="/">На главную</a>
-      </div>
-    )
-  }
-  if (popupStatus === 'sent') {
-    return (
-      <div className="auth-callback-page">
-        <p>Данные отправлены в окно входа.</p>
-        <p><small>URL: {typeof window !== 'undefined' ? window.location.href : ''}</small></p>
-        <button type="button" onClick={() => window.close()}>Закрыть окно</button>
       </div>
     )
   }
