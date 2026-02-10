@@ -1,7 +1,7 @@
 /**
  * ADM-01: Callback после редиректа от Telegram OAuth.
  * Параметры могут прийти в query (?hash=...&id=...) или в hash (#hash=...&id=...) — учитываем оба варианта.
- * Если открыто в popup (window.opener) — передаём параметры в окно-родитель, показываем статус и закрываем popup с задержкой.
+ * Если открыто в popup (window.opener) — передаём параметры в окно-родитель, показываем статус; окно закрывается только по кнопке (чтобы успеть F12).
  * Иначе — запрашиваем JWT у backend, сохраняем токен и редиректим на главную.
  */
 import { useEffect, useState } from 'react'
@@ -36,10 +36,7 @@ export default function AuthCallback() {
     if (window.opener) {
       window.opener.postMessage({ type: 'mkd-telegram-auth', params }, window.location.origin)
       setPopupStatus('sent')
-      const t = setTimeout(() => {
-        window.close()
-      }, 20000)
-      return () => clearTimeout(t)
+      return
     }
 
     const query = new URLSearchParams(params).toString()
@@ -68,7 +65,9 @@ export default function AuthCallback() {
   if (popupStatus === 'sent') {
     return (
       <div className="auth-callback-page">
-        <p>Данные отправлены в окно входа. Окно закроется через 20 сек.</p>
+        <p>Данные отправлены в окно входа.</p>
+        <p><small>URL: {typeof window !== 'undefined' ? window.location.href : ''}</small></p>
+        <button type="button" onClick={() => window.close()}>Закрыть окно</button>
       </div>
     )
   }

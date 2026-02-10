@@ -46,12 +46,16 @@ export default function Login() {
     return () => window.removeEventListener('message', handleMessage)
   }, [handleMessage])
 
+  const getOAuthUrl = () => {
+    const origin = window.location.origin
+    const returnTo = `${origin}/auth/callback`
+    return `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${encodeURIComponent(origin)}&request_access=write&return_to=${encodeURIComponent(returnTo)}`
+  }
+
   const openPopup = () => {
     if (!botId) return
     setError(null)
-    const origin = window.location.origin
-    const returnTo = `${origin}/auth/callback`
-    const url = `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${encodeURIComponent(origin)}&request_access=write&return_to=${encodeURIComponent(returnTo)}`
+    const url = getOAuthUrl()
     const left = Math.round((window.screen.width - POPUP_WIDTH) / 2)
     const top = Math.round((window.screen.height - POPUP_HEIGHT) / 2)
     window.open(
@@ -61,6 +65,12 @@ export default function Login() {
     )
   }
 
+  const openInSameTab = () => {
+    if (!botId) return
+    setError(null)
+    window.location.href = getOAuthUrl()
+  }
+
   return (
     <div className="login-page">
       <h1>Вход для администратора</h1>
@@ -68,9 +78,16 @@ export default function Login() {
       {loading && <p>Загрузка…</p>}
       {error && <p className="login-error">{error}</p>}
       {!loading && botId && (
-        <button type="button" className="login-telegram-btn" onClick={openPopup}>
-          Войти через Telegram
-        </button>
+        <>
+          <button type="button" className="login-telegram-btn" onClick={openPopup}>
+            Войти через Telegram
+          </button>
+          <p style={{ marginTop: 8 }}>
+            <button type="button" className="link-style" onClick={openInSameTab}>
+              Открыть в этой вкладке (отладка)
+            </button>
+          </p>
+        </>
       )}
       {!loading && !botId && !error && <p className="login-error">Бот не настроен (TELEGRAM_BOT_TOKEN).</p>}
     </div>
