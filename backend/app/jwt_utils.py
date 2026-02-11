@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import jwt
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import JWT_ALGORITHM, JWT_ACCESS_EXPIRE_SECONDS, JWT_SECRET
@@ -38,7 +38,7 @@ def decode_token(token: str) -> dict[str, Any]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 
-def require_super_admin(credentials: HTTPAuthorizationCredentials | None) -> dict[str, Any]:
+def require_super_admin(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> dict[str, Any]:
     """Зависимость: только super_administrator (ADM-04)."""
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
@@ -48,7 +48,7 @@ def require_super_admin(credentials: HTTPAuthorizationCredentials | None) -> dic
     return payload
 
 
-def require_admin(credentials: HTTPAuthorizationCredentials | None) -> dict[str, Any]:
+def require_admin(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> dict[str, Any]:
     """Зависимость: administrator или super_administrator (CORE-01, SR-CORE01-001)."""
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")

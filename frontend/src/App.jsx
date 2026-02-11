@@ -6,7 +6,32 @@ import Form from './pages/Form'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
 
-const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('mkd_access_token') : null)
+/** Проверить, не протух ли JWT (по полю exp в payload). */
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return !payload.exp || payload.exp * 1000 < Date.now()
+  } catch {
+    return true
+  }
+}
+
+/** Вернуть токен из localStorage; если протух — удалить и вернуть null. */
+function getToken() {
+  if (typeof window === 'undefined') return null
+  const t = localStorage.getItem('mkd_access_token')
+  if (t && isTokenExpired(t)) {
+    localStorage.removeItem('mkd_access_token')
+    return null
+  }
+  return t
+}
+
+/** Удалить токен и оповестить приложение (навбар, компоненты). */
+export function clearAuth() {
+  localStorage.removeItem('mkd_access_token')
+  window.dispatchEvent(new CustomEvent('mkd-auth-change'))
+}
 
 function Home() {
   const [searchParams] = useSearchParams()
@@ -38,7 +63,12 @@ function App() {
   useEffect(() => {
     const onAuthChange = () => setToken(getToken())
     window.addEventListener('mkd-auth-change', onAuthChange)
-    return () => window.removeEventListener('mkd-auth-change', onAuthChange)
+    // Проверять срок действия токена каждые 30 секунд
+    const interval = setInterval(() => setToken(getToken()), 30_000)
+    return () => {
+      window.removeEventListener('mkd-auth-change', onAuthChange)
+      clearInterval(interval)
+    }
   }, [])
   return (
     <div className="app">

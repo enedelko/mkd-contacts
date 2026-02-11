@@ -14,7 +14,14 @@ export default function Login() {
       .then((r) => r.json())
       .then((data) => {
         if (data.bot_id != null) setBotId(data.bot_id)
-        else setError(data.detail || 'Бот не настроен')
+        else {
+          const errMsg = typeof data.detail === 'string'
+            ? data.detail
+            : Array.isArray(data.detail)
+              ? data.detail.map((e) => e.msg || JSON.stringify(e)).join('; ')
+              : 'Бот не настроен'
+          setError(errMsg)
+        }
       })
       .catch(() => setError('Сервер недоступен'))
       .finally(() => setLoading(false))

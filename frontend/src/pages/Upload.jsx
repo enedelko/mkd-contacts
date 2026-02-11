@@ -3,6 +3,8 @@
  * Инструкция, выбор файла (.csv, .xlsx, .xls), валидация структуры, отчёт.
  */
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { clearAuth } from '../App'
 
 const EXPECTED_COLUMNS = [
   'cadastral_number',
@@ -22,6 +24,7 @@ export default function Upload() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [structureError, setStructureError] = useState(null)
+  const navigate = useNavigate()
 
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mkd_access_token') : null
 
@@ -50,6 +53,11 @@ export default function Upload() {
         body: formData,
       })
       const data = await res.json().catch(() => ({}))
+      if (res.status === 401 || res.status === 403) {
+        clearAuth()
+        navigate('/login', { replace: true })
+        return
+      }
       if (!res.ok) {
         if (res.status === 400 && data.detail === 'Column structure mismatch' && data.expected_columns && data.detected_columns) {
           setStructureError({
@@ -57,7 +65,15 @@ export default function Upload() {
             detected: data.detected_columns,
           })
         } else {
-          setResult({ error: data.detail || `Ошибка ${res.status}` })
+          let errorMsg = `Ошибка ${res.status}`
+          if (typeof data.detail === 'string') {
+            errorMsg = data.detail
+          } else if (Array.isArray(data.detail)) {
+            errorMsg = data.detail.map((e) => e.msg || JSON.stringify(e)).join('; ')
+          } else if (data.detail) {
+            errorMsg = JSON.stringify(data.detail)
+          }
+          setResult({ error: errorMsg })
         }
         return
       }

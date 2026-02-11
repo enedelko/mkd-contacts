@@ -90,7 +90,12 @@ export default function Form() {
       if (res.ok && data.success) {
         setMessage({ type: 'success', text: data.message || 'Данные приняты' })
       } else {
-        setMessage({ type: 'error', text: data.detail || 'Ошибка отправки' })
+        const errorText = typeof data.detail === 'string'
+          ? data.detail
+          : Array.isArray(data.detail)
+            ? data.detail.map((e) => e.msg || JSON.stringify(e)).join('; ')
+            : 'Ошибка отправки'
+        setMessage({ type: 'error', text: errorText })
         if (data.errors) {
           const byField = {}
           data.errors.forEach((err) => { byField[err.field] = err.message })
