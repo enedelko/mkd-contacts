@@ -5,6 +5,7 @@ import Premises from './pages/Premises'
 import Form from './pages/Form'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
+import Policy from './pages/Policy'
 
 /** Проверить, не протух ли JWT (по полю exp в payload). */
 function isTokenExpired(token) {
@@ -89,6 +90,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/upload" element={<Upload />} />
+        <Route path="/policy" element={<Policy />} />
       </Routes>
     </div>
   )
