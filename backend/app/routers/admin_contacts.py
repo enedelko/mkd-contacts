@@ -27,9 +27,9 @@ class AdminContactBody(BaseModel):
     phone: str | None = None
     email: str | None = None
     telegram_id: str | None = None
-    vote_for: bool = True
-    vote_format: str = Field("paper", description="paper | electronic")
-    registered_ed: bool = False
+    barrier_vote: str | None = Field(None, description="for | against | undecided")
+    vote_format: str | None = Field(None, description="electronic | paper | undecided")
+    registered_ed: str | None = Field(None, description="yes | no")
 
 
 def _resolve_premise_cadastral(premise_id: str, db) -> str | None:
@@ -81,7 +81,7 @@ def create_contact(
             ),
             {
                 "pid": cadastral,
-                "phone": phone_enc, "email": email_enc, "telegram_id": telegram_id_enc,
+                "phone": phone_enc, "email": email_enc, "tg": telegram_id_enc,
                 "pi": phone_idx, "ei": email_idx, "ti": telegram_id_idx,
                 "re": body.registered_ed,
                 "ip": None,
@@ -92,8 +92,8 @@ def create_contact(
         contact_id = r[0] if r else None
         if contact_id:
             db.execute(
-                text("INSERT INTO oss_voting (contact_id, position_for, vote_format, voted_in_ed, voted) VALUES (:cid, :pf, :vf, :ve, false)"),
-                {"cid": contact_id, "pf": str(body.vote_for).lower(), "vf": body.vote_format, "ve": body.registered_ed},
+                text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, :bv, :vf, false)"),
+                {"cid": contact_id, "bv": body.barrier_vote, "vf": body.vote_format},
             )
         db.commit()
 

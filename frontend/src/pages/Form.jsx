@@ -26,6 +26,7 @@ export default function Form() {
   const [telegramId, setTelegramId] = useState('')
   const [barrierVote, setBarrierVote] = useState('')
   const [voteFormat, setVoteFormat] = useState('')
+  const [registeredEd, setRegisteredEd] = useState('')
   const [consent, setConsent] = useState(false)
   const [captchaToken, setCaptchaToken] = useState('')
   const [loading, setLoading] = useState(false)
@@ -86,6 +87,7 @@ export default function Form() {
           telegram_id: telegramId.trim() || null,
           barrier_vote: barrierVote || null,
           vote_format: voteFormat || null,
+          registered_ed: registeredEd || null,
           consent_version: '1.0',
           captcha_token: captchaToken || null,
         }),
@@ -184,6 +186,16 @@ export default function Form() {
           <label>
             <input type="radio" name="voteFormat" value="undecided" checked={voteFormat === 'undecided'} onChange={() => setVoteFormat('undecided')} />
             Ещё не определились
+          </label>
+
+          <p>Зарегистрированы ли вы в <a href="https://ed.mos.ru/about-oss/" target="_blank" rel="noopener noreferrer">Электронном доме</a>?</p>
+          <label>
+            <input type="radio" name="registeredEd" value="yes" checked={registeredEd === 'yes'} onChange={() => setRegisteredEd('yes')} />
+            Да
+          </label>
+          <label>
+            <input type="radio" name="registeredEd" value="no" checked={registeredEd === 'no'} onChange={() => setRegisteredEd('no')} />
+            Нет
           </label>
         </fieldset>
 

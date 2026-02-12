@@ -83,6 +83,9 @@ logs/
 # Docker local overrides
 docker-compose.override.yml
 
+# Секреты (мастер-ключ шифрования и т.п.)
+secrets/
+
 # Node (frontend)
 node_modules/
 frontend/dist/

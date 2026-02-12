@@ -24,9 +24,9 @@ class SubmitBody(BaseModel):
     phone: str | None = None
     email: str | None = None
     telegram_id: str | None = None
-    vote_for: bool = Field(..., description="Позиция ЗА (да/нет)")
-    vote_format: str = Field(..., description="paper | electronic")
-    registered_ed: bool = Field(..., description="Зарегистрирован в Электронном Доме")
+    barrier_vote: str | None = Field(None, description="for | against | undecided")
+    vote_format: str | None = Field(None, description="electronic | paper | undecided")
+    registered_ed: str | None = Field(None, description="yes | no")
     consent_version: str | None = None
     captcha_token: str | None = Field(None, alias="captcha_token")
 
@@ -51,7 +51,7 @@ def submit(
         phone=body.phone,
         email=body.email,
         telegram_id=body.telegram_id,
-        vote_for=body.vote_for,
+        barrier_vote=body.barrier_vote,
         vote_format=body.vote_format,
         registered_ed=body.registered_ed,
         consent_version=body.consent_version,

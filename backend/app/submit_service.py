@@ -47,9 +47,9 @@ def submit_questionnaire(
     phone: str | None,
     email: str | None,
     telegram_id: str | None,
-    vote_for: bool,
-    vote_format: str,
-    registered_ed: bool,
+    barrier_vote: str | None,
+    vote_format: str | None,
+    registered_ed: str | None,
     consent_version: str | None,
     client_ip: str | None,
     captcha_verified: bool = True,
@@ -100,13 +100,13 @@ def submit_questionnaire(
             r = db.execute(text("SELECT 1 FROM oss_voting WHERE contact_id = :cid"), {"cid": cid}).fetchone()
             if r:
                 db.execute(
-                    text("UPDATE oss_voting SET position_for = :pf, vote_format = :vf, voted_in_ed = :ve WHERE contact_id = :cid"),
-                    {"pf": str(vote_for).lower(), "vf": vote_format, "ve": registered_ed, "cid": cid},
+                    text("UPDATE oss_voting SET barrier_vote = :bv, vote_format = :vf WHERE contact_id = :cid"),
+                    {"bv": barrier_vote, "vf": vote_format, "cid": cid},
                 )
             else:
                 db.execute(
-                    text("INSERT INTO oss_voting (contact_id, position_for, vote_format, voted_in_ed, voted) VALUES (:cid, :pf, :vf, :ve, false)"),
-                    {"cid": cid, "pf": str(vote_for).lower(), "vf": vote_format, "ve": registered_ed},
+                    text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, :bv, :vf, false)"),
+                    {"cid": cid, "bv": barrier_vote, "vf": vote_format},
                 )
 
         if existing:
@@ -142,7 +142,7 @@ def submit_questionnaire(
                 ),
                 {
                     "pid": cadastral, "io": is_owner,
-                    "phone": phone_enc, "email": email_enc, "telegram_id": telegram_id_enc,
+                    "phone": phone_enc, "email": email_enc, "tg": telegram_id_enc,
                     "pi": phone_idx, "ei": email_idx, "ti": telegram_id_idx,
                     "re": registered_ed, "cv": consent_version, "ip": client_ip,
                 },
@@ -152,8 +152,8 @@ def submit_questionnaire(
             contact_id = contact_id_row[0] if contact_id_row else None
             if contact_id:
                 db.execute(
-                    text("INSERT INTO oss_voting (contact_id, position_for, vote_format, voted_in_ed, voted) VALUES (:cid, :pf, :vf, :ve, false)"),
-                    {"cid": contact_id, "pf": str(vote_for).lower(), "vf": vote_format, "ve": registered_ed},
+                    text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, :bv, :vf, false)"),
+                    {"cid": contact_id, "bv": barrier_vote, "vf": vote_format},
                 )
             db.commit()
             logger.info("Submit: new contact premise_id=%s (no PII in log)", cadastral)
