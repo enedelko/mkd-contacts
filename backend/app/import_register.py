@@ -251,10 +251,7 @@ def run_import(rows: list[dict[str, Any]], client_ip: str | None = None) -> dict
                 email = (row.get("email") or "").strip() or None
                 telegram_id = (row.get("telegram_id") or "").strip() or None
                 how_to_address = (row.get("how_to_address") or "").strip() or None
-                if not phone and not email and not telegram_id:
-                    errors.append({"row": row_1based, "message": "At least one of phone, email, telegram_id required for contact"})
-                    rejected += 1
-                    continue
+                has_contact = phone or email or telegram_id
                 premises_number_raw = (row.get("premises_number") or "").strip() or None
                 premises_number = normalize_room_number(premises_number_raw) or premises_number_raw or ""
                 try:
@@ -270,6 +267,10 @@ def run_import(rows: list[dict[str, Any]], client_ip: str | None = None) -> dict
                 except Exception as e:
                     errors.append({"row": row_1based, "message": f"Premise error: {e}"})
                     rejected += 1
+                    continue
+                # Если контактных данных нет — помещение создано, контакт не добавляется
+                if not has_contact:
+                    accepted += 1
                     continue
                 phone_idx = blind_index_phone(phone) if phone else None
                 email_idx = blind_index_email(email) if email else None

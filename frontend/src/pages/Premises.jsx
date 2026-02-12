@@ -1,6 +1,7 @@
 /**
  * FE-03: Каскадные фильтры помещений (SR-FE03-001..006).
- * Подъезд → Этаж → Тип → Номер. После выбора — переход к форме (FE-04).
+ * Подъезд → Этаж → Тип → Номер. Пустые уровни пропускаются автоматически.
+ * После выбора — переход к форме (FE-04).
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -8,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 const API = '/api/premises'
 
 export default function Premises() {
+  const [hasEntrances, setHasEntrances] = useState(null) // null = loading
   const [entrances, setEntrances] = useState([])
   const [floors, setFloors] = useState([])
   const [types, setTypes] = useState([])
@@ -20,14 +22,32 @@ export default function Premises() {
   const [error, setError] = useState(null)
   const navigate = useNavigate()
 
+  // Шаг 1: загрузить подъезды; если пусто — сразу загрузить этажи
   useEffect(() => {
+    setLoading(true)
     fetch(`${API}/entrances`)
       .then((r) => r.json())
-      .then((d) => setEntrances(d.entrances || []))
-      .catch(() => setEntrances([]))
+      .then((d) => {
+        const list = d.entrances || []
+        setEntrances(list)
+        setHasEntrances(list.length > 0)
+        if (list.length === 0) {
+          // Подъездов нет — загружаем этажи без фильтра по подъезду
+          return fetch(`${API}/floors`)
+            .then((r) => r.json())
+            .then((d) => setFloors(d.floors || []))
+        }
+      })
+      .catch(() => {
+        setEntrances([])
+        setHasEntrances(false)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
+  // Шаг 2: при выборе подъезда — загрузить этажи
   useEffect(() => {
+    if (hasEntrances === null || !hasEntrances) return // пропускаем, если подъездов нет
     if (!entrance) {
       setFloors([])
       setFloor('')
@@ -48,10 +68,11 @@ export default function Premises() {
     setTypes([])
     setPremises([])
     setSelectedPremise(null)
-  }, [entrance])
+  }, [entrance, hasEntrances])
 
+  // Шаг 3: при выборе этажа — загрузить типы
   useEffect(() => {
-    if (!entrance || !floor) {
+    if (!floor) {
       setTypes([])
       setType('')
       setPremises([])
@@ -59,7 +80,9 @@ export default function Premises() {
       return
     }
     setLoading(true)
-    fetch(`${API}/types?entrance=${encodeURIComponent(entrance)}&floor=${encodeURIComponent(floor)}`)
+    const params = new URLSearchParams({ floor })
+    if (entrance) params.set('entrance', entrance)
+    fetch(`${API}/types?${params}`)
       .then((r) => r.json())
       .then((d) => setTypes(d.types || []))
       .catch(() => setTypes([]))
@@ -67,26 +90,25 @@ export default function Premises() {
     setType('')
     setPremises([])
     setSelectedPremise(null)
-  }, [entrance, floor])
+  }, [floor, entrance])
 
+  // Шаг 4: при выборе типа — загрузить номера
   useEffect(() => {
-    if (!entrance || !floor || !type) {
+    if (!floor || !type) {
       setPremises([])
       setSelectedPremise(null)
       return
     }
     setLoading(true)
-    fetch(`${API}/numbers?entrance=${encodeURIComponent(entrance)}&floor=${encodeURIComponent(floor)}&type=${encodeURIComponent(type)}`)
+    const params = new URLSearchParams({ floor, type })
+    if (entrance) params.set('entrance', entrance)
+    fetch(`${API}/numbers?${params}`)
       .then((r) => r.json())
       .then((d) => setPremises(d.premises || []))
       .catch(() => setPremises([]))
       .finally(() => setLoading(false))
     setSelectedPremise(null)
-  }, [entrance, floor, type])
-
-  const handleSelectPremise = (p) => {
-    setSelectedPremise(p)
-  }
+  }, [floor, type, entrance])
 
   const handleGoToForm = () => {
     if (selectedPremise) {
@@ -94,27 +116,36 @@ export default function Premises() {
     }
   }
 
-  const isEmpty = entrances.length === 0 && !loading
+  const isEmpty = hasEntrances !== null && entrances.length === 0 && floors.length === 0 && !loading
+
   return (
     <div className="premises-page">
       <h1>Выбор помещения</h1>
       {error && <p className="error">{error}</p>}
+      {hasEntrances === null && <p>Загрузка…</p>}
       {isEmpty && <p className="empty-message">Данные по дому пока не загружены.</p>}
-      {!isEmpty && (
+      {!isEmpty && hasEntrances !== null && (
         <>
           <div className="cascade-filters">
-            <label>
-              Подъезд
-              <select value={entrance} onChange={(e) => setEntrance(e.target.value)} disabled={loading}>
-                <option value="">— выберите —</option>
-                {entrances.map((e) => (
-                  <option key={e} value={e}>{e}</option>
-                ))}
-              </select>
-            </label>
+            {/* Подъезд — только если есть данные */}
+            {hasEntrances && (
+              <label>
+                Подъезд
+                <select value={entrance} onChange={(e) => setEntrance(e.target.value)} disabled={loading}>
+                  <option value="">— выберите —</option>
+                  {entrances.map((e) => (
+                    <option key={e} value={e}>{e}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label>
               Этаж
-              <select value={floor} onChange={(e) => setFloor(e.target.value)} disabled={!entrance || loading}>
+              <select
+                value={floor}
+                onChange={(e) => setFloor(e.target.value)}
+                disabled={(hasEntrances && !entrance) || loading || floors.length === 0}
+              >
                 <option value="">— выберите —</option>
                 {floors.map((f) => (
                   <option key={f} value={f}>{f}</option>
@@ -151,7 +182,7 @@ export default function Premises() {
           </div>
           {selectedPremise && (
             <div className="selected-premise">
-              <p>Выбрано: подъезд {entrance}, этаж {floor}, {type} № {selectedPremise.number}</p>
+              <p>Выбрано: {entrance ? `подъезд ${entrance}, ` : ''}этаж {floor}, {type} № {selectedPremise.number}</p>
               <button type="button" onClick={handleGoToForm}>Перейти к форме анкеты</button>
             </div>
           )}
