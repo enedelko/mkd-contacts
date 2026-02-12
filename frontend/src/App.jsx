@@ -56,7 +56,7 @@ function Home() {
       navigate(`/auth/callback${window.location.hash}`, { replace: true })
     }
   }, [searchParams, navigate])
-  return <p>Фронтенд (React + Vite). Выберите помещение или загрузку реестра.</p>
+  return <p>Выберите помещение или загрузку реестра.</p>
 }
 
 function App() {
