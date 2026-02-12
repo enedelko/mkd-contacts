@@ -112,7 +112,7 @@ export default function Premises() {
 
   const handleGoToForm = () => {
     if (selectedPremise) {
-      navigate('/form', { state: { premise: selectedPremise, entrance, floor, type } })
+      navigate('/form', { state: { premise: selectedPremise, entrance, floor, type, hasEntrances } })
     }
   }
 

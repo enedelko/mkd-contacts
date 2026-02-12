@@ -12,15 +12,20 @@ export default function Form() {
   const location = useLocation()
   const navigate = useNavigate()
   const premise = location.state?.premise
-  const premiseLabel = location.state ? `${location.state.entrance} / ${location.state.floor} / ${location.state.type} № ${premise?.number}` : ''
+  const premiseLabel = location.state
+    ? [
+        location.state.hasEntrances ? `Подъезд ${location.state.entrance || '—'}` : null,
+        `Этаж ${location.state.floor}`,
+        `${location.state.type} № ${premise?.number}`,
+      ].filter(Boolean).join(' / ')
+    : ''
 
   const [isOwner, setIsOwner] = useState(true)
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [telegramId, setTelegramId] = useState('')
-  const [voteFor, setVoteFor] = useState(true)
-  const [voteFormat, setVoteFormat] = useState('electronic')
-  const [registeredEd, setRegisteredEd] = useState(false)
+  const [barrierVote, setBarrierVote] = useState('')
+  const [voteFormat, setVoteFormat] = useState('')
   const [consent, setConsent] = useState(false)
   const [captchaToken, setCaptchaToken] = useState('')
   const [loading, setLoading] = useState(false)
@@ -79,9 +84,8 @@ export default function Form() {
           phone: phone.trim() || null,
           email: email.trim() || null,
           telegram_id: telegramId.trim() || null,
-          vote_for: voteFor,
-          vote_format: voteFormat,
-          registered_ed: registeredEd,
+          barrier_vote: barrierVote || null,
+          vote_format: voteFormat || null,
           consent_version: '1.0',
           captcha_token: captchaToken || null,
         }),
@@ -120,51 +124,68 @@ export default function Form() {
       <p className="premise-display">Помещение: {premiseLabel}</p>
 
       <form onSubmit={handleSubmit}>
-        <label>
-          <input type="checkbox" checked={isOwner} onChange={(e) => setIsOwner(e.target.checked)} />
-          Я собственник (обязательно)
-        </label>
+        <fieldset>
+          <legend>Статус</legend>
+          <label>
+            <input type="radio" name="ownerStatus" value="owner" checked={isOwner} onChange={() => setIsOwner(true)} />
+            Собственник помещения
+          </label>
+          <label>
+            <input type="radio" name="ownerStatus" value="resident" checked={!isOwner} onChange={() => setIsOwner(false)} />
+            Проживающий (не собственник)
+          </label>
+        </fieldset>
 
         <fieldset>
           <legend>Контакт (хотя бы одно поле)</legend>
           <label>
-            Телефон
+            Телефон:{' '}
             <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 ..." />
           </label>
           {errors.phone && <span className="field-error">{errors.phone}</span>}
           <label>
-            Email
+            Email:{' '}
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
           {errors.email && <span className="field-error">{errors.email}</span>}
           <label>
-            Telegram (id или @username)
+            Telegram (id или @username):{' '}
             <input type="text" value={telegramId} onChange={(e) => setTelegramId(e.target.value)} />
           </label>
           {errors.telegram_id && <span className="field-error">{errors.telegram_id}</span>}
           {errors.contact && <span className="field-error">{errors.contact}</span>}
         </fieldset>
 
-        <label>
-          Позиция по ОСС: ЗА
-          <select value={String(voteFor)} onChange={(e) => setVoteFor(e.target.value === 'true')}>
-            <option value="true">Да</option>
-            <option value="false">Нет</option>
-          </select>
-        </label>
+        <fieldset>
+          <legend>Вопросы ОСС</legend>
+          <p>Одобряю схему размещения шлагбаумов:</p>
+          <label>
+            <input type="radio" name="barrierVote" value="for" checked={barrierVote === 'for'} onChange={() => setBarrierVote('for')} />
+            За
+          </label>
+          <label>
+            <input type="radio" name="barrierVote" value="against" checked={barrierVote === 'against'} onChange={() => setBarrierVote('against')} />
+            Против
+          </label>
+          <label>
+            <input type="radio" name="barrierVote" value="undecided" checked={barrierVote === 'undecided'} onChange={() => setBarrierVote('undecided')} />
+            Ещё не определились
+          </label>
 
-        <label>
-          Формат голосования
-          <select value={voteFormat} onChange={(e) => setVoteFormat(e.target.value)}>
-            <option value="paper">Бумага</option>
-            <option value="electronic">Электронно</option>
-          </select>
-        </label>
-
-        <label>
-          <input type="checkbox" checked={registeredEd} onChange={(e) => setRegisteredEd(e.target.checked)} />
-          Зарегистрирован в Электронном Доме
-        </label>
+          <p>Как вы проголосуете:</p>
+          <label>
+            <input type="radio" name="voteFormat" value="electronic" checked={voteFormat === 'electronic'} onChange={() => setVoteFormat('electronic')} />
+            Онлайн в Электронном доме
+          </label>
+          <label>
+            <input type="radio" name="voteFormat" value="paper" checked={voteFormat === 'paper'} onChange={() => setVoteFormat('paper')} />
+            На бумажном бюллетене
+          </label>
+          <label>
+            <input type="radio" name="voteFormat" value="undecided" checked={voteFormat === 'undecided'} onChange={() => setVoteFormat('undecided')} />
+            Ещё не определились
+          </label>
+        </fieldset>
 
         <label>
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
