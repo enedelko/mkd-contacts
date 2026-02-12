@@ -43,7 +43,7 @@ def submit(
     client_ip = request.client.host if request.client else None
     allowed, retry_after = check_submit_rate_limit(client_ip or "", SUBMIT_RATE_LIMIT_PER_HOUR)
     if not allowed:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded", headers={"Retry-After": str(retry_after)})
+        raise HTTPException(status_code=429, detail="Превышен лимит отправок. Повторите позже.", headers={"Retry-After": str(retry_after)})
     captcha_ok = verify_turnstile(body.captcha_token, client_ip)
     result = submit_questionnaire(
         premise_id=body.premise_id,
@@ -70,6 +70,6 @@ def submit(
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=400,
-            content={"detail": result.get("detail", "Validation failed"), "errors": result["errors"]},
+            content={"detail": result.get("detail", "Ошибка валидации"), "errors": result["errors"]},
         )
     raise HTTPException(status_code=400, detail=result.get("detail", "Error"))

@@ -24,6 +24,7 @@ VALID_STATUSES = ("validated", "inactive")
 
 class AdminContactBody(BaseModel):
     premise_id: str = Field(..., description="Кадастровый номер помещения (cadastral_number)")
+    is_owner: bool = Field(True, description="Собственник (true) или проживающий (false)")
     phone: str | None = None
     email: str | None = None
     telegram_id: str | None = None
@@ -51,21 +52,21 @@ def create_contact(
     Капча не требуется; применяется валидация форматов (CORE-02), шифрование (BE-02).
     """
     if not body.phone and not body.email and not body.telegram_id:
-        raise HTTPException(status_code=400, detail="At least one of phone, email, telegram_id required")
+        raise HTTPException(status_code=400, detail="Укажите хотя бы один контакт: телефон, email или Telegram")
     ok, err = validate_phone(body.phone)
     if not ok:
-        raise HTTPException(status_code=400, detail=f"Invalid phone: {err}")
+        raise HTTPException(status_code=400, detail=err)
     ok, err = validate_email(body.email)
     if not ok:
-        raise HTTPException(status_code=400, detail=f"Invalid email: {err}")
+        raise HTTPException(status_code=400, detail=err)
     ok, err = validate_telegram_id(body.telegram_id)
     if not ok:
-        raise HTTPException(status_code=400, detail=f"Invalid telegram_id: {err}")
+        raise HTTPException(status_code=400, detail=err)
 
     with get_db() as db:
         cadastral = _resolve_premise_cadastral(body.premise_id, db)
         if not cadastral:
-            raise HTTPException(status_code=404, detail="Premise not found")
+            raise HTTPException(status_code=404, detail="Помещение не найдено")
 
         phone_enc = encrypt(body.phone) if body.phone else None
         email_enc = encrypt(body.email) if body.email else None
@@ -77,10 +78,10 @@ def create_contact(
         db.execute(
             text(
                 "INSERT INTO contacts (premise_id, is_owner, phone, email, telegram_id, phone_idx, email_idx, telegram_id_idx, "
-                "registered_in_ed, status, ip) VALUES (:pid, true, :phone, :email, :tg, :pi, :ei, :ti, :re, 'validated', :ip)"
+                "registered_in_ed, status, ip) VALUES (:pid, :io, :phone, :email, :tg, :pi, :ei, :ti, :re, 'validated', :ip)"
             ),
             {
-                "pid": cadastral,
+                "pid": cadastral, "io": body.is_owner,
                 "phone": phone_enc, "email": email_enc, "tg": telegram_id_enc,
                 "pi": phone_idx, "ei": email_idx, "ti": telegram_id_idx,
                 "re": body.registered_ed,
@@ -141,7 +142,7 @@ def update_contact_status(
             {"cid": contact_id},
         ).fetchone()
         if not row:
-            raise HTTPException(status_code=404, detail="Contact not found")
+            raise HTTPException(status_code=404, detail="Контакт не найден")
         old_status = row[1]
         if old_status == body.status:
             return {"contact_id": contact_id, "status": body.status}

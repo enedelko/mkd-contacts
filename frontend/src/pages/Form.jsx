@@ -21,6 +21,10 @@ export default function Form() {
     : ''
 
   const [isOwner, setIsOwner] = useState(true)
+  const handleOwnerChange = (val) => {
+    setIsOwner(val)
+    if (!val) { setBarrierVote(''); setVoteFormat(''); setRegisteredEd('') }
+  }
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [telegramId, setTelegramId] = useState('')
@@ -85,9 +89,9 @@ export default function Form() {
           phone: phone.trim() || null,
           email: email.trim() || null,
           telegram_id: telegramId.trim() || null,
-          barrier_vote: barrierVote || null,
-          vote_format: voteFormat || null,
-          registered_ed: registeredEd || null,
+          barrier_vote: isOwner ? (barrierVote || null) : null,
+          vote_format: isOwner ? (voteFormat || null) : null,
+          registered_ed: isOwner ? (registeredEd || null) : null,
           consent_version: '1.0',
           captcha_token: captchaToken || null,
         }),
@@ -129,11 +133,11 @@ export default function Form() {
         <fieldset>
           <legend>Статус</legend>
           <label>
-            <input type="radio" name="ownerStatus" value="owner" checked={isOwner} onChange={() => setIsOwner(true)} />
+            <input type="radio" name="ownerStatus" value="owner" checked={isOwner} onChange={() => handleOwnerChange(true)} />
             Собственник помещения
           </label>
           <label>
-            <input type="radio" name="ownerStatus" value="resident" checked={!isOwner} onChange={() => setIsOwner(false)} />
+            <input type="radio" name="ownerStatus" value="resident" checked={!isOwner} onChange={() => handleOwnerChange(false)} />
             Проживающий (не собственник)
           </label>
         </fieldset>
@@ -158,46 +162,48 @@ export default function Form() {
           {errors.contact && <span className="field-error">{errors.contact}</span>}
         </fieldset>
 
-        <fieldset>
-          <legend>Вопросы ОСС</legend>
-          <p>Одобряю схему размещения шлагбаумов:</p>
-          <label>
-            <input type="radio" name="barrierVote" value="for" checked={barrierVote === 'for'} onChange={() => setBarrierVote('for')} />
-            За
-          </label>
-          <label>
-            <input type="radio" name="barrierVote" value="against" checked={barrierVote === 'against'} onChange={() => setBarrierVote('against')} />
-            Против
-          </label>
-          <label>
-            <input type="radio" name="barrierVote" value="undecided" checked={barrierVote === 'undecided'} onChange={() => setBarrierVote('undecided')} />
-            Ещё не определились
-          </label>
+        {isOwner && (
+          <fieldset>
+            <legend>Вопросы ОСС</legend>
+            <p>Одобряю схему размещения шлагбаумов:</p>
+            <label>
+              <input type="radio" name="barrierVote" value="for" checked={barrierVote === 'for'} onChange={() => setBarrierVote('for')} />
+              За
+            </label>
+            <label>
+              <input type="radio" name="barrierVote" value="against" checked={barrierVote === 'against'} onChange={() => setBarrierVote('against')} />
+              Против
+            </label>
+            <label>
+              <input type="radio" name="barrierVote" value="undecided" checked={barrierVote === 'undecided'} onChange={() => setBarrierVote('undecided')} />
+              Ещё не определились
+            </label>
 
-          <p>Как вы проголосуете:</p>
-          <label>
-            <input type="radio" name="voteFormat" value="electronic" checked={voteFormat === 'electronic'} onChange={() => setVoteFormat('electronic')} />
-            Онлайн в Электронном доме
-          </label>
-          <label>
-            <input type="radio" name="voteFormat" value="paper" checked={voteFormat === 'paper'} onChange={() => setVoteFormat('paper')} />
-            На бумажном бюллетене
-          </label>
-          <label>
-            <input type="radio" name="voteFormat" value="undecided" checked={voteFormat === 'undecided'} onChange={() => setVoteFormat('undecided')} />
-            Ещё не определились
-          </label>
+            <p>Как вы проголосуете:</p>
+            <label>
+              <input type="radio" name="voteFormat" value="electronic" checked={voteFormat === 'electronic'} onChange={() => setVoteFormat('electronic')} />
+              Онлайн в Электронном доме
+            </label>
+            <label>
+              <input type="radio" name="voteFormat" value="paper" checked={voteFormat === 'paper'} onChange={() => setVoteFormat('paper')} />
+              На бумажном бюллетене
+            </label>
+            <label>
+              <input type="radio" name="voteFormat" value="undecided" checked={voteFormat === 'undecided'} onChange={() => setVoteFormat('undecided')} />
+              Ещё не определились
+            </label>
 
-          <p>Зарегистрированы ли вы в <a href="https://ed.mos.ru/about-oss/" target="_blank" rel="noopener noreferrer">Электронном доме</a>?</p>
-          <label>
-            <input type="radio" name="registeredEd" value="yes" checked={registeredEd === 'yes'} onChange={() => setRegisteredEd('yes')} />
-            Да
-          </label>
-          <label>
-            <input type="radio" name="registeredEd" value="no" checked={registeredEd === 'no'} onChange={() => setRegisteredEd('no')} />
-            Нет
-          </label>
-        </fieldset>
+            <p>Зарегистрированы ли вы в <a href="https://ed.mos.ru/about-oss/" target="_blank" rel="noopener noreferrer">Электронном доме</a>?</p>
+            <label>
+              <input type="radio" name="registeredEd" value="yes" checked={registeredEd === 'yes'} onChange={() => setRegisteredEd('yes')} />
+              Да
+            </label>
+            <label>
+              <input type="radio" name="registeredEd" value="no" checked={registeredEd === 'no'} onChange={() => setRegisteredEd('no')} />
+              Нет
+            </label>
+          </fieldset>
+        )}
 
         <label>
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />

@@ -59,28 +59,28 @@ def submit_questionnaire(
     Возвращает dict: success, message или error с detail/errors/code.
     """
     if not phone and not email and not telegram_id:
-        return {"success": False, "detail": "At least one of phone, email, telegram_id required", "errors": [{"field": "contact", "message": "At least one contact field required"}]}
+        return {"success": False, "detail": "Укажите хотя бы один контакт: телефон, email или Telegram", "errors": [{"field": "contact", "message": "Укажите хотя бы один контакт: телефон, email или Telegram"}]}
 
     ok, err = validate_phone(phone)
     if not ok:
-        return {"success": False, "detail": "Validation failed", "errors": [{"field": "phone", "message": err}]}
+        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "phone", "message": err}]}
     ok, err = validate_email(email)
     if not ok:
-        return {"success": False, "detail": "Validation failed", "errors": [{"field": "email", "message": err}]}
+        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "email", "message": err}]}
     ok, err = validate_telegram_id(telegram_id)
     if not ok:
-        return {"success": False, "detail": "Validation failed", "errors": [{"field": "telegram_id", "message": err}]}
+        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "telegram_id", "message": err}]}
 
     if not captcha_verified:
-        return {"success": False, "detail": "Captcha verification required"}
+        return {"success": False, "detail": "Необходимо пройти проверку капчи"}
 
     with get_db() as db:
         cadastral = _resolve_premise_cadastral(premise_id, db)
         if not cadastral:
-            return {"success": False, "detail": "Premise not found", "code": "PREMISE_NOT_FOUND"}
+            return {"success": False, "detail": "Помещение не найдено", "code": "PREMISE_NOT_FOUND"}
 
         if _count_pending_on_premise(db, cadastral) >= PENDING_LIMIT_PER_PREMISE:
-            return {"success": False, "detail": "Premise limit exceeded: max 10 unvalidated contacts per premise", "code": "PREMISE_LIMIT_EXCEEDED"}
+            return {"success": False, "detail": "Превышен лимит: не более 10 неподтверждённых контактов на помещение", "code": "PREMISE_LIMIT_EXCEEDED"}
 
         phone_idx = blind_index_phone(phone) if phone else None
         email_idx = blind_index_email(email) if email else None
@@ -90,7 +90,7 @@ def submit_questionnaire(
         row = {"phone": phone, "email": email, "telegram_id": telegram_id}
         collision_msg = _collision(existing, row, phone_idx, email_idx, telegram_id_idx)
         if collision_msg:
-            return {"success": False, "detail": "Contact data conflict: existing record has different values. Please contact administrators to resolve.", "code": "CONTACT_CONFLICT"}
+            return {"success": False, "detail": "Конфликт данных: запись с такими контактами уже существует. Обратитесь к администратору.", "code": "CONTACT_CONFLICT"}
 
         phone_enc = encrypt(phone)
         email_enc = encrypt(email)

@@ -30,3 +30,13 @@ nav a { margin-right: 1rem; }
 .login-page .link-style { background: none; border: none; color: #056; cursor: pointer; text-decoration: underline; font-size: 0.95rem; padding: 0; }
 .auth-callback-page { margin: 1rem 0; }
 .auth-callback-page .auth-error { color: #c62828; margin-bottom: 0.5rem; }
+.admin-contacts-page .admin-hint { color: #555; font-size: 0.95rem; margin-bottom: 1rem; }
+.admin-contacts-page .cascade-filters label { display: block; margin: 0.75rem 0; }
+.admin-contacts-page select { margin-left: 0.5rem; min-width: 12rem; }
+.admin-contacts-page .empty-message { color: #666; }
+.admin-contacts-page .selected-info { margin-top: 0.5rem; font-weight: 600; color: #2e7d32; }
+.admin-contacts-page fieldset { margin: 1rem 0; }
+.admin-contacts-page label { display: block; margin: 0.5rem 0; }
+.admin-contacts-page .field-error { display: block; color: #c62828; font-size: 0.9rem; }
+.admin-contacts-page .form-message.success { color: #2e7d32; margin-top: 1rem; }
+.admin-contacts-page .form-message.error { color: #c62828; margin-top: 1rem; }
