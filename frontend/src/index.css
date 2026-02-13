@@ -1,7 +1,12 @@
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, sans-serif; padding: 1rem; }
-.app { max-width: 720px; margin: 0 auto; }
-.app:has(.admin-contacts-list-page) { max-width: 1200px; }
+body { margin: 0; font-family: system-ui, sans-serif; padding: 1rem 0; background: #c0c0c0; min-height: 100vh; }
+.app { max-width: 100%; }
+.app-header { width: 100%; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,0.08); }
+.app-header-inner { max-width: 720px; margin: 0 auto; padding: 1rem; }
+.app-header-inner h1 { margin: 0 0 0.5rem; }
+.app-header-inner nav { margin: 0; }
+.app-body { max-width: 720px; margin: 0 auto; padding: 1rem; }
+.app-body:has(.admin-contacts-list-page) { max-width: 1200px; }
 nav { margin: 0.5rem 0; }
 nav a { margin-right: 1rem; }
 nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointer; font-size: inherit; padding: 0; text-decoration: underline; }
@@ -96,3 +101,14 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .pagination { display: flex; gap: 1rem; align-items: center; justify-content: center; margin: 1rem 0; }
 .pagination button { padding: 0.3rem 0.8rem; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
 .pagination button:disabled { opacity: 0.5; cursor: default; }
+/* CORE-04: кворум на главной */
+.home-quorum { margin-top: 1.5rem; padding: 1rem; background: #f5f5f5; border-radius: 8px; }
+.home-quorum .quorum-loading { color: #666; margin: 0; }
+.home-quorum .quorum-error { color: #666; margin: 0; }
+.home-quorum .quorum-block { margin: 0; }
+.home-quorum .quorum-block h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+.home-quorum .quorum-stats { margin: 0 0 0.5rem; font-size: 0.95rem; }
+.home-quorum .quorum-progress-wrap { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }
+.home-quorum .quorum-progress { height: 100%; background: #1976d2; border-radius: 4px; transition: width 0.2s; }
+.home-quorum .quorum-result { margin: 0.5rem 0 0; font-weight: 600; font-size: 0.95rem; }
+.home-quorum .quorum-result.quorum-reached { color: #2e7d32; }

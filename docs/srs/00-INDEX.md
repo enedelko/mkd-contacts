@@ -66,7 +66,8 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | 3 | [Цепочка импорта](04-import-chain.md) | CORE-01, LOST-02 | Импорт реестра CSV/XLS, страница загрузки (инструкция, валидация колонок) |
 | 4 | [Форма и контакты](05-add-contacts.md) | FE-03, FE-04, … | Каскадные фильтры, форма анкеты, добавление контактов |
 | 5 | [Валидация](06-validation.md) | VAL-01, CORE-02 | Смена статуса контакта, валидация и лимиты, дедупликация |
-| 6 | [Остальные фичи](98-backlog.md) | FE-01, FE-02, FE-05, BE-03, BE-04, CORE-03, CORE-04, BOT-01…04, ADM-02, ADM-03, ADM-05, OPS-01…03, CORE-06 | Поиск, карта, бот, модерация, безопасность, операции |
+| 6 | [Кворум (базовый расчёт)](08-core04-quorum.md) | CORE-04 | API расчёта долей, отображение на главной |
+| 7 | [Остальные фичи](98-backlog.md) | FE-01, FE-02, FE-05, BOT-01…04, ADM-02, ADM-03, ADM-05, OPS-01…03, CORE-06 | Поиск, карта, бот, модерация, операции |
 | — | [Итоговая сводка (Action Items)](99-summary.md) | — | Вопросы к бизнесу, допущения, риски |
 
 ---
@@ -80,7 +81,8 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | CORE-01, LOST-02 | [04-import-chain.md](04-import-chain.md) |
 | FE-03, FE-04, … | [05-add-contacts.md](05-add-contacts.md) |
 | VAL-01, CORE-02 | [06-validation.md](06-validation.md) |
-| FE-01, FE-02, FE-05, BE-03, BE-04, CORE-03, CORE-04, BOT-01…04, ADM-02, ADM-03, ADM-05, OPS-01…03, CORE-06 | [98-backlog.md](98-backlog.md) |
+| CORE-04 | [08-core04-quorum.md](08-core04-quorum.md) |
+| FE-01, FE-02, FE-05, BOT-01…04, ADM-02, ADM-03, ADM-05, OPS-01…03, CORE-06 | [98-backlog.md](98-backlog.md) |
 | Итоговая сводка | [99-summary.md](99-summary.md) |
 
 ---
