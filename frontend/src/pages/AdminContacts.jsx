@@ -1,19 +1,21 @@
 /**
- * ADM-03: Форма добавления контакта администратором (SR-ADM03-001..005).
- * Каскадный выбор помещения (FE-03) + поля контакта + позиция ОСС.
- * Капча не требуется; авторизация — JWT. Статус «валидирован» устанавливается бэкендом.
+ * ADM-03: Форма добавления / редактирования контакта администратором.
+ * Создание: /admin/contacts — каскадный выбор помещения + POST.
+ * Редактирование: /admin/contacts/:id — загрузка данных + PUT.
  */
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { clearAuth } from '../App'
 
 const API = '/api/premises'
 
 export default function AdminContacts() {
   const navigate = useNavigate()
+  const { id: editId } = useParams()
+  const isEdit = Boolean(editId)
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mkd_access_token') : null
 
-  // --- Каскадные фильтры (как в Premises.jsx) ---
+  // --- Каскадные фильтры ---
   const [hasEntrances, setHasEntrances] = useState(null)
   const [entrances, setEntrances] = useState([])
   const [floors, setFloors] = useState([])
@@ -33,8 +35,13 @@ export default function AdminContacts() {
   const [voteFormat, setVoteFormat] = useState('')
   const [registeredEd, setRegisteredEd] = useState('')
 
+  // --- Данные для отображения помещения в режиме редактирования ---
+  const [editPremiseLabel, setEditPremiseLabel] = useState('')
+  const [editPremiseId, setEditPremiseId] = useState('')
+
   const [loading, setLoading] = useState(false)
   const [filterLoading, setFilterLoading] = useState(false)
+  const [editLoading, setEditLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [errors, setErrors] = useState({})
 
@@ -43,8 +50,41 @@ export default function AdminContacts() {
     if (!token) navigate('/login', { replace: true })
   }, [token, navigate])
 
-  // --- Каскад: подъезды ---
+  // --- Загрузка контакта в режиме редактирования ---
   useEffect(() => {
+    if (!isEdit || !token) return
+    setEditLoading(true)
+    fetch(`/api/admin/contacts/${editId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => {
+        if (r.status === 401 || r.status === 403) { clearAuth(); navigate('/login', { replace: true }); return null }
+        if (!r.ok) throw new Error('Контакт не найден')
+        return r.json()
+      })
+      .then((data) => {
+        if (!data) return
+        setIsOwner(data.is_owner ?? true)
+        setPhone(data.phone || '')
+        setEmail(data.email || '')
+        setTelegramId(data.telegram_id || '')
+        setBarrierVote(data.barrier_vote || '')
+        setVoteFormat(data.vote_format || '')
+        setRegisteredEd(data.registered_ed || '')
+        setEditPremiseId(data.premise_id || '')
+        const parts = []
+        if (data.entrance) parts.push(`подъезд ${data.entrance}`)
+        if (data.floor) parts.push(`этаж ${data.floor}`)
+        if (data.premises_type && data.premises_number) parts.push(`${data.premises_type} № ${data.premises_number}`)
+        setEditPremiseLabel(parts.length ? parts.join(', ') : data.premise_id)
+      })
+      .catch((err) => setMessage({ type: 'error', text: err.message }))
+      .finally(() => setEditLoading(false))
+  }, [isEdit, editId, token, navigate])
+
+  // --- Каскад: подъезды (только в режиме создания) ---
+  useEffect(() => {
+    if (isEdit) return
     setFilterLoading(true)
     fetch(`${API}/entrances`)
       .then((r) => r.json())
@@ -58,15 +98,13 @@ export default function AdminContacts() {
             .then((d) => setFloors(d.floors || []))
         }
       })
-      .catch(() => {
-        setEntrances([])
-        setHasEntrances(false)
-      })
+      .catch(() => { setEntrances([]); setHasEntrances(false) })
       .finally(() => setFilterLoading(false))
-  }, [])
+  }, [isEdit])
 
   // --- Каскад: этажи ---
   useEffect(() => {
+    if (isEdit) return
     if (hasEntrances === null || !hasEntrances) return
     if (!entrance) {
       setFloors([]); setFloor(''); setType(''); setTypes([]); setPremises([]); setSelectedPremise(null)
@@ -79,10 +117,11 @@ export default function AdminContacts() {
       .catch(() => setFloors([]))
       .finally(() => setFilterLoading(false))
     setFloor(''); setType(''); setTypes([]); setPremises([]); setSelectedPremise(null)
-  }, [entrance, hasEntrances])
+  }, [entrance, hasEntrances, isEdit])
 
   // --- Каскад: типы ---
   useEffect(() => {
+    if (isEdit) return
     if (!floor) { setTypes([]); setType(''); setPremises([]); setSelectedPremise(null); return }
     setFilterLoading(true)
     const params = new URLSearchParams({ floor })
@@ -93,10 +132,11 @@ export default function AdminContacts() {
       .catch(() => setTypes([]))
       .finally(() => setFilterLoading(false))
     setType(''); setPremises([]); setSelectedPremise(null)
-  }, [floor, entrance])
+  }, [floor, entrance, isEdit])
 
   // --- Каскад: номера ---
   useEffect(() => {
+    if (isEdit) return
     if (!floor || !type) { setPremises([]); setSelectedPremise(null); return }
     setFilterLoading(true)
     const params = new URLSearchParams({ floor, type })
@@ -107,7 +147,7 @@ export default function AdminContacts() {
       .catch(() => setPremises([]))
       .finally(() => setFilterLoading(false))
     setSelectedPremise(null)
-  }, [floor, type, entrance])
+  }, [floor, type, entrance, isEdit])
 
   // --- Отправка ---
   const handleSubmit = async (e) => {
@@ -115,7 +155,7 @@ export default function AdminContacts() {
     setMessage(null)
     setErrors({})
 
-    if (!selectedPremise) {
+    if (!isEdit && !selectedPremise) {
       setErrors({ premise: 'Выберите помещение' })
       return
     }
@@ -127,22 +167,26 @@ export default function AdminContacts() {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/contacts', {
-        method: 'POST',
+      const url = isEdit ? `/api/admin/contacts/${editId}` : '/api/admin/contacts'
+      const method = isEdit ? 'PUT' : 'POST'
+      const bodyData = {
+        is_owner: isOwner,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        telegram_id: telegramId.trim() || null,
+        barrier_vote: isOwner ? (barrierVote || null) : null,
+        vote_format: isOwner ? (voteFormat || null) : null,
+        registered_ed: isOwner ? (registeredEd || null) : null,
+      }
+      if (!isEdit) bodyData.premise_id = selectedPremise.premise_id
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          premise_id: selectedPremise.premise_id,
-          is_owner: isOwner,
-          phone: phone.trim() || null,
-          email: email.trim() || null,
-          telegram_id: telegramId.trim() || null,
-          barrier_vote: isOwner ? (barrierVote || null) : null,
-          vote_format: isOwner ? (voteFormat || null) : null,
-          registered_ed: isOwner ? (registeredEd || null) : null,
-        }),
+        body: JSON.stringify(bodyData),
       })
 
       const data = await res.json().catch(() => ({}))
@@ -154,10 +198,13 @@ export default function AdminContacts() {
       }
 
       if (res.ok) {
-        setMessage({ type: 'success', text: `Контакт создан (id: ${data.contact_id}, статус: ${data.status})` })
-        // Сбросить поля контакта после успеха
-        setIsOwner(true); setPhone(''); setEmail(''); setTelegramId('')
-        setBarrierVote(''); setVoteFormat(''); setRegisteredEd('')
+        if (isEdit) {
+          setMessage({ type: 'success', text: 'Контакт обновлён' })
+        } else {
+          setMessage({ type: 'success', text: `Контакт создан (id: ${data.contact_id}, статус: ${data.status})` })
+          setIsOwner(true); setPhone(''); setEmail(''); setTelegramId('')
+          setBarrierVote(''); setVoteFormat(''); setRegisteredEd('')
+        }
       } else {
         const errorText = typeof data.detail === 'string'
           ? data.detail
@@ -183,74 +230,82 @@ export default function AdminContacts() {
 
   const isEmpty = hasEntrances !== null && entrances.length === 0 && floors.length === 0 && !filterLoading
 
+  if (editLoading) return <div className="admin-contacts-page"><h1>Загрузка…</h1></div>
+
   return (
     <div className="admin-contacts-page">
-      <h1>Добавить контакт</h1>
-      <p className="admin-hint">Ввод контакта от имени администратора. Статус «валидирован» устанавливается автоматически.</p>
+      <h1>{isEdit ? `Редактирование контакта #${editId}` : 'Добавить контакт'}</h1>
+      <p className="admin-hint">
+        {isEdit
+          ? `Помещение: ${editPremiseLabel}`
+          : 'Ввод контакта от имени администратора. Статус «валидирован» устанавливается автоматически.'}
+      </p>
 
-      {/* --- Каскадный выбор помещения --- */}
-      <fieldset>
-        <legend>Помещение</legend>
-        {hasEntrances === null && <p>Загрузка…</p>}
-        {isEmpty && <p className="empty-message">Данные по дому пока не загружены.</p>}
-        {!isEmpty && hasEntrances !== null && (
-          <div className="cascade-filters">
-            {hasEntrances && (
+      {/* --- Каскадный выбор помещения (только при создании) --- */}
+      {!isEdit && (
+        <fieldset>
+          <legend>Помещение</legend>
+          {hasEntrances === null && <p>Загрузка…</p>}
+          {isEmpty && <p className="empty-message">Данные по дому пока не загружены.</p>}
+          {!isEmpty && hasEntrances !== null && (
+            <div className="cascade-filters">
+              {hasEntrances && (
+                <label>
+                  Подъезд
+                  <select value={entrance} onChange={(e) => setEntrance(e.target.value)} disabled={filterLoading}>
+                    <option value="">— выберите —</option>
+                    {entrances.map((e) => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
-                Подъезд
-                <select value={entrance} onChange={(e) => setEntrance(e.target.value)} disabled={filterLoading}>
+                Этаж
+                <select
+                  value={floor}
+                  onChange={(e) => setFloor(e.target.value)}
+                  disabled={(hasEntrances && !entrance) || filterLoading || floors.length === 0}
+                >
                   <option value="">— выберите —</option>
-                  {entrances.map((e) => (
-                    <option key={e} value={e}>{e}</option>
+                  {floors.map((f) => (
+                    <option key={f} value={f}>{f}</option>
                   ))}
                 </select>
               </label>
-            )}
-            <label>
-              Этаж
-              <select
-                value={floor}
-                onChange={(e) => setFloor(e.target.value)}
-                disabled={(hasEntrances && !entrance) || filterLoading || floors.length === 0}
-              >
-                <option value="">— выберите —</option>
-                {floors.map((f) => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Тип помещения
-              <select value={type} onChange={(e) => setType(e.target.value)} disabled={!floor || filterLoading}>
-                <option value="">— выберите —</option>
-                {types.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Номер помещения
-              <select
-                value={selectedPremise ? selectedPremise.premise_id : ''}
-                onChange={(e) => {
-                  const p = premises.find((x) => x.premise_id === e.target.value)
-                  setSelectedPremise(p || null)
-                }}
-                disabled={!type || filterLoading}
-              >
-                <option value="">— выберите —</option>
-                {premises.map((p) => (
-                  <option key={p.premise_id} value={p.premise_id}>
-                    {p.number}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        )}
-        {errors.premise && <span className="field-error">{errors.premise}</span>}
-        {premiseLabel && <p className="selected-info">Выбрано: {premiseLabel}</p>}
-      </fieldset>
+              <label>
+                Тип помещения
+                <select value={type} onChange={(e) => setType(e.target.value)} disabled={!floor || filterLoading}>
+                  <option value="">— выберите —</option>
+                  {types.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Номер помещения
+                <select
+                  value={selectedPremise ? selectedPremise.premise_id : ''}
+                  onChange={(e) => {
+                    const p = premises.find((x) => x.premise_id === e.target.value)
+                    setSelectedPremise(p || null)
+                  }}
+                  disabled={!type || filterLoading}
+                >
+                  <option value="">— выберите —</option>
+                  {premises.map((p) => (
+                    <option key={p.premise_id} value={p.premise_id}>
+                      {p.number}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+          {errors.premise && <span className="field-error">{errors.premise}</span>}
+          {premiseLabel && <p className="selected-info">Выбрано: {premiseLabel}</p>}
+        </fieldset>
+      )}
 
       {/* --- Форма --- */}
       <form onSubmit={handleSubmit}>
@@ -330,7 +385,14 @@ export default function AdminContacts() {
           </fieldset>
         )}
 
-        <button type="submit" disabled={loading}>{loading ? 'Сохранение…' : 'Сохранить контакт'}</button>
+        <button type="submit" disabled={loading}>
+          {loading ? 'Сохранение…' : isEdit ? 'Сохранить изменения' : 'Сохранить контакт'}
+        </button>
+        {isEdit && (
+          <button type="button" style={{ marginLeft: '0.5rem' }} onClick={() => navigate('/admin/contacts/list')}>
+            Назад к списку
+          </button>
+        )}
       </form>
 
       {message && (
