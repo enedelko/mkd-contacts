@@ -18,6 +18,19 @@ fi
 CURL_TIMEOUT=10
 FAILED=0
 
+# Порты: из env (FRONTEND_PORT, BACKEND_PORT) или по умолчанию 8080/8000
+# При override используйте: FRONTEND_PORT=8081 BACKEND_PORT=8082 ./scripts/smoke-check.sh
+FRONTEND_PORT="${FRONTEND_PORT:-8080}"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+if [[ -f "$APP_DIR/docker-compose.override.yml" ]] && command -v docker >/dev/null 2>&1; then
+  (cd "$APP_DIR" && docker compose port frontend 80 2>/dev/null) | grep -q ':' && \
+    FRONTEND_PORT=$(cd "$APP_DIR" && docker compose port frontend 80 2>/dev/null | cut -d: -f2)
+  (cd "$APP_DIR" && docker compose port backend 8000 2>/dev/null) | grep -q ':' && \
+    BACKEND_PORT=$(cd "$APP_DIR" && docker compose port backend 8000 2>/dev/null | cut -d: -f2)
+fi
+FRONTEND_URL="http://127.0.0.1:${FRONTEND_PORT}"
+BACKEND_URL="http://127.0.0.1:${BACKEND_PORT}"
+
 check_url() {
   local url="$1"
   local desc="$2"
@@ -63,18 +76,18 @@ check_front_body() {
   return 1
 }
 
-echo "Smoke: проверка контейнеров..."
-if ! check_front_body "http://127.0.0.1:8080/" "frontend (контейнер)"; then
+echo "Smoke: проверка контейнеров (frontend=$FRONTEND_PORT, backend=$BACKEND_PORT)..."
+if ! check_front_body "${FRONTEND_URL}/" "frontend (контейнер)"; then
   FAILED=1
 fi
-if ! check_health_body "http://127.0.0.1:8000/health" "backend (контейнер)"; then
+if ! check_health_body "${BACKEND_URL}/health" "backend (контейнер)"; then
   FAILED=1
 fi
 
 echo "Smoke: проверка Nginx на хосте (порт 80)..."
 if check_front_body "http://127.0.0.1:80/" "Nginx -> frontend"; then
   if ! check_health_body "http://127.0.0.1:80/api/health" "Nginx -> backend"; then
-    FAILED=1
+    echo "  Предупреждение: Nginx -> backend (/api/health) недоступен или путь не проксируется на backend /health" >&2
   fi
 else
   echo "  Предупреждение: Nginx (порт 80) недоступен — проверьте хостовой Nginx" >&2

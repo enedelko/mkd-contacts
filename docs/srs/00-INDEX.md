@@ -63,6 +63,7 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 |--|--------|------|------------|
 | 1 | [BE-01 Инфраструктура](02-BE-01-infrastructure.md) | BE-01 | Развёртывание в РФ, Docker (frontend, backend, db) |
 | 2 | [Базовый админ и схема БД](03-basic-admin.md) | LOST-01, BE-02, ADM-01, ADM-04 | Миграции (Alembic), таблицы admins/premises/contacts, шифрование ПДн, Telegram OAuth, управление админами |
+| 9 | [Вход по логину/паролю и смена пароля](09-admin-login-password.md) | ADM-01-PWD | Альтернатива Telegram OAuth: логин/пароль, смена пароля, управление логином/паролем суперадмином |
 | 3 | [Цепочка импорта](04-import-chain.md) | CORE-01, LOST-02 | Импорт реестра CSV/XLS, страница загрузки (инструкция, валидация колонок) |
 | 4 | [Форма и контакты](05-add-contacts.md) | FE-03, FE-04, … | Каскадные фильтры, форма анкеты, добавление контактов |
 | 5 | [Валидация](06-validation.md) | VAL-01, CORE-02 | Смена статуса контакта, валидация и лимиты, дедупликация |
@@ -78,6 +79,7 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 |-----|------|
 | BE-01 | [02-BE-01-infrastructure.md](02-BE-01-infrastructure.md) |
 | LOST-01, BE-02, ADM-01, ADM-04 | [03-basic-admin.md](03-basic-admin.md) |
+| ADM-01-PWD | [09-admin-login-password.md](09-admin-login-password.md) |
 | CORE-01, LOST-02 | [04-import-chain.md](04-import-chain.md) |
 | FE-03, FE-04, … | [05-add-contacts.md](05-add-contacts.md) |
 | VAL-01, CORE-02 | [06-validation.md](06-validation.md) |
