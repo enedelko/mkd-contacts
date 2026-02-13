@@ -69,3 +69,30 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .contacts-table .btn-pending:hover { background: #d1ecf1; }
 .contacts-table .btn-inactive { color: #856404; border-color: #ffc107; }
 .contacts-table .btn-inactive:hover { background: #fff3cd; }
+/* CORE-03: массовые действия */
+.bulk-actions { display: flex; gap: 0.5rem; align-items: center; margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #e3f2fd; border-radius: 6px; flex-wrap: wrap; }
+.bulk-actions span { font-weight: 600; font-size: 0.9rem; }
+.bulk-actions button { padding: 0.3rem 0.7rem; font-size: 0.8rem; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
+/* BE-03: аудит-лог */
+.app:has(.audit-log-page) { max-width: 1200px; }
+.audit-log-page .filters-bar { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin: 1rem 0; }
+.audit-log-page .filters-bar label { display: flex; flex-direction: column; font-size: 0.9rem; }
+.audit-log-page .filters-bar input,
+.audit-log-page .filters-bar select { margin-top: 0.25rem; padding: 0.3rem 0.5rem; }
+.audit-log-page .filters-bar button { padding: 0.4rem 1rem; cursor: pointer; }
+.audit-log-page .total-info { color: #555; font-size: 0.9rem; }
+.audit-log-page .list-error { color: #c62828; }
+.audit-log-page .empty-message { color: #666; }
+.audit-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
+.audit-table th, .audit-table td { border: 1px solid #ddd; padding: 0.4rem 0.5rem; text-align: left; }
+.audit-table th { background: #f5f5f5; position: sticky; top: 0; }
+.audit-table .entity-id-cell { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.action-badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.8rem; }
+.action-badge.insert { background: #d4edda; color: #155724; }
+.action-badge.update { background: #cce5ff; color: #004085; }
+.action-badge.select { background: #e2e3e5; color: #383d41; }
+.action-badge.status_change { background: #fff3cd; color: #856404; }
+.action-badge.delete { background: #f8d7da; color: #721c24; }
+.pagination { display: flex; gap: 1rem; align-items: center; justify-content: center; margin: 1rem 0; }
+.pagination button { padding: 0.3rem 0.8rem; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
+.pagination button:disabled { opacity: 0.5; cursor: default; }

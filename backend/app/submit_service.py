@@ -7,6 +7,8 @@ from typing import Any
 
 from sqlalchemy import text
 
+from sqlalchemy import text as sa_text
+
 from app.crypto import (
     blind_index_email,
     blind_index_phone,
@@ -16,6 +18,20 @@ from app.crypto import (
 from app.db import get_db
 from app.import_register import _find_contact_by_indexes, _collision
 from app.validators import validate_phone, validate_email, validate_telegram_id
+
+
+def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str | None, new_value: str | None, user_id: str | None, ip: str | None) -> None:
+    """BE-03: запись в аудит-лог."""
+    try:
+        db.execute(
+            sa_text(
+                "INSERT INTO audit_log (entity_type, entity_id, action, old_value, new_value, user_id, ip) "
+                "VALUES (:et, :eid, :act, :old, :new, :uid, :ip)"
+            ),
+            {"et": entity_type, "eid": entity_id, "act": action, "old": old_value, "new": new_value, "uid": user_id, "ip": ip},
+        )
+    except Exception as e:
+        logger.warning("audit_log insert failed: %s", e)
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +171,8 @@ def submit_questionnaire(
                     text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, :bv, :vf, false)"),
                     {"cid": contact_id, "bv": barrier_vote, "vf": vote_format},
                 )
+            # BE-03 / SR-BE03-001: логируем INSERT контакта (публичная форма)
+            _audit_log(db, "contact", str(contact_id), "insert", None, None, None, client_ip)
             db.commit()
             logger.info("Submit: new contact premise_id=%s (no PII in log)", cadastral)
             return {"success": True, "message": "Данные приняты"}

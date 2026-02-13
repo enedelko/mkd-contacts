@@ -8,6 +8,7 @@ import AuthCallback from './pages/AuthCallback'
 import Policy from './pages/Policy'
 import AdminContacts from './pages/AdminContacts'
 import AdminContactsList from './pages/AdminContactsList'
+import AuditLog from './pages/AuditLog'
 
 /** Проверить, не протух ли JWT (по полю exp в payload). */
 function isTokenExpired(token) {
@@ -84,6 +85,7 @@ function App() {
             <Link to="/upload">Загрузка реестра</Link>
             <Link to="/admin/contacts">Добавить контакт</Link>
             <Link to="/admin/contacts/list">Контакты</Link>
+            <Link to="/admin/audit">Аудит-лог</Link>
             <button type="button" className="nav-logout" onClick={() => { clearAuth(); setToken(null) }}>Выйти</button>
           </>
         ) : (
@@ -101,6 +103,7 @@ function App() {
         <Route path="/admin/contacts" element={<AdminContacts />} />
         <Route path="/admin/contacts/:id" element={<AdminContacts />} />
         <Route path="/admin/contacts/list" element={<AdminContactsList />} />
+        <Route path="/admin/audit" element={<AuditLog />} />
       </Routes>
     </div>
   )

@@ -59,6 +59,7 @@ def list_contacts(
         ).fetchall()
 
     items = []
+    contact_ids = []
     for r in rows:
         items.append({
             "id": r[0],
@@ -78,6 +79,15 @@ def list_contacts(
             "barrier_vote": r[14],
             "vote_format": r[15],
         })
+        contact_ids.append(str(r[0]))
+
+    # BE-03 / SR-BE03-004: логируем факт чтения контактов админом
+    if contact_ids:
+        admin_id = payload.get("sub")
+        with get_db() as db2:
+            _audit_log(db2, "contact", ",".join(contact_ids), "select", None, None, admin_id, None)
+            db2.commit()
+
     return {"contacts": items, "total": len(items)}
 
 
@@ -103,6 +113,13 @@ def get_contact(
         ).fetchone()
     if not r:
         raise HTTPException(status_code=404, detail="Контакт не найден")
+
+    # BE-03 / SR-BE03-004: логируем факт чтения одного контакта
+    admin_id = payload.get("sub")
+    with get_db() as db2:
+        _audit_log(db2, "contact", str(contact_id), "select", None, None, admin_id, None)
+        db2.commit()
+
     return {
         "id": r[0], "premise_id": r[1], "is_owner": r[2],
         "phone": decrypt(r[3]), "email": decrypt(r[4]), "telegram_id": decrypt(r[5]),
@@ -188,6 +205,8 @@ def create_contact(
                 text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, :bv, :vf, false)"),
                 {"cid": contact_id, "bv": body.barrier_vote, "vf": body.vote_format},
             )
+        # BE-03 / SR-BE03-001: логируем INSERT контакта
+        _audit_log(db, "contact", str(contact_id), "insert", None, None, payload.get("sub"), None)
         db.commit()
 
     logger.info("ADM-03: contact created by sub=%s premise_id=%s contact_id=%s", payload.get("sub"), cadastral, contact_id)
@@ -275,6 +294,11 @@ class StatusBody(BaseModel):
     status: str = Field(..., description="validated | inactive")
 
 
+class BulkStatusBody(BaseModel):
+    contact_ids: list[int] = Field(..., description="Список ID контактов")
+    status: str = Field(..., description="pending | validated | inactive")
+
+
 def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str | None, new_value: str | None, user_id: str | None, ip: str | None) -> None:
     """VAL-01-005: запись в аудит-лог (BE-03)."""
     try:
@@ -287,6 +311,50 @@ def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str
         )
     except Exception as e:
         logger.warning("audit_log insert failed: %s", e)
+
+
+@router.patch("/contacts/bulk-status")
+def bulk_update_status(
+    body: BulkStatusBody,
+    request: Request,
+    payload: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """
+    CORE-03 / SR-CORE03-001: Массовая смена статуса контактов.
+    Принимает список ID и целевой статус.
+    """
+    if body.status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail="status должен быть 'pending', 'validated' или 'inactive'")
+    if not body.contact_ids:
+        raise HTTPException(status_code=400, detail="Список ID не может быть пустым")
+    if len(body.contact_ids) > 200:
+        raise HTTPException(status_code=400, detail="Максимум 200 контактов за раз")
+
+    client_ip = request.client.host if request.client else None
+    admin_id = payload.get("sub")
+    updated = 0
+
+    with get_db() as db:
+        for cid in body.contact_ids:
+            row = db.execute(
+                text("SELECT id, status FROM contacts WHERE id = :cid"),
+                {"cid": cid},
+            ).fetchone()
+            if not row:
+                continue
+            old_status = row[1]
+            if old_status == body.status:
+                continue
+            db.execute(
+                text("UPDATE contacts SET status = :st, updated_at = CURRENT_TIMESTAMP WHERE id = :cid"),
+                {"st": body.status, "cid": cid},
+            )
+            _audit_log(db, "contact", str(cid), "status_change", old_status, body.status, admin_id, client_ip)
+            updated += 1
+        db.commit()
+
+    logger.info("CORE-03: bulk status -> %s for %d contacts by sub=%s", body.status, updated, admin_id)
+    return {"updated": updated, "status": body.status}
 
 
 @router.patch("/contacts/{contact_id}/status")

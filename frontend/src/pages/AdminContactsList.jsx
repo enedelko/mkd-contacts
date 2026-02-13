@@ -22,6 +22,10 @@ export default function AdminContactsList() {
   const [filterPremise, setFilterPremise] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
 
+  // Массовые действия (CORE-03)
+  const [selected, setSelected] = useState(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
+
   useEffect(() => {
     if (!token) navigate('/login', { replace: true })
   }, [token, navigate])
@@ -89,6 +93,57 @@ export default function AdminContactsList() {
     }
   }
 
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selected.size === contacts.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(contacts.map((c) => c.id)))
+    }
+  }
+
+  const handleBulkStatus = async (newStatus) => {
+    if (!token || selected.size === 0) return
+    if (!confirm(`Изменить статус ${selected.size} контакт(ов) на «${STATUS_LABELS[newStatus]}»?`)) return
+    setBulkLoading(true)
+    try {
+      const res = await fetch('/api/admin/contacts/bulk-status', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ contact_ids: [...selected], status: newStatus }),
+      })
+      if (res.status === 401 || res.status === 403) {
+        clearAuth()
+        navigate('/login', { replace: true })
+        return
+      }
+      if (res.ok) {
+        setContacts((prev) =>
+          prev.map((c) => (selected.has(c.id) ? { ...c, status: newStatus } : c))
+        )
+        setSelected(new Set())
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert(typeof data.detail === 'string' ? data.detail : 'Ошибка массовой смены статуса')
+      }
+    } catch (err) {
+      alert(err.message || 'Ошибка сети')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
   const premiseLabel = (c) => {
     const parts = []
     if (c.entrance) parts.push(`п.${c.entrance}`)
@@ -130,10 +185,30 @@ export default function AdminContactsList() {
 
       <p className="total-info">Найдено: {total}</p>
 
+      {/* CORE-03: панель массовых действий */}
+      {selected.size > 0 && (
+        <div className="bulk-actions">
+          <span>Выбрано: {selected.size}</span>
+          <button type="button" className="btn-validate" disabled={bulkLoading} onClick={() => handleBulkStatus('validated')}>
+            Валидировать
+          </button>
+          <button type="button" className="btn-pending" disabled={bulkLoading} onClick={() => handleBulkStatus('pending')}>
+            Сбросить
+          </button>
+          <button type="button" className="btn-inactive" disabled={bulkLoading} onClick={() => handleBulkStatus('inactive')}>
+            Неактуальный
+          </button>
+          <button type="button" disabled={bulkLoading} onClick={() => setSelected(new Set())}>
+            Снять выделение
+          </button>
+        </div>
+      )}
+
       {contacts.length > 0 && (
         <table className="contacts-table">
           <thead>
             <tr>
+              <th><input type="checkbox" checked={contacts.length > 0 && selected.size === contacts.length} onChange={toggleSelectAll} /></th>
               <th>ID</th>
               <th>Помещение</th>
               <th>Статус</th>
@@ -151,6 +226,7 @@ export default function AdminContactsList() {
           <tbody>
             {contacts.map((c) => (
               <tr key={c.id} className={`status-${c.status}`}>
+                <td><input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} /></td>
                 <td>{c.id}</td>
                 <td title={c.premise_id}>{premiseLabel(c)}</td>
                 <td>
