@@ -84,6 +84,7 @@ function App() {
             <Link to="/upload">Загрузка реестра</Link>
             <Link to="/admin/contacts">Добавить контакт</Link>
             <Link to="/admin/contacts/list">Контакты</Link>
+            <button type="button" className="nav-logout" onClick={() => { clearAuth(); setToken(null) }}>Выйти</button>
           </>
         ) : (
           <Link to="/login">Войти через Telegram</Link>
