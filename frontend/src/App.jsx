@@ -108,7 +108,7 @@ function Home() {
               />
             </div>
             <p className={`quorum-result ${quorum.quorum_reached ? 'quorum-reached' : ''}`}>
-              {quorum.quorum_reached ? 'Кворум набран' : 'Кворум пока не набран'}
+              Кворум набирается{quorum.quorum_reached ? ' (порог 2/3 достигнут)' : ' (порог 2/3 пока не достигнут)'}
             </p>
           </div>
         )}
