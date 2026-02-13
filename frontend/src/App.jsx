@@ -10,6 +10,7 @@ import AdminContacts from './pages/AdminContacts'
 import AdminContactsList from './pages/AdminContactsList'
 import AuditLog from './pages/AuditLog'
 import ChangePassword from './pages/ChangePassword'
+import SuperadminAdmins from './pages/SuperadminAdmins'
 
 /** Проверить, не протух ли JWT (по полю exp в payload). */
 function isTokenExpired(token) {
@@ -36,6 +37,17 @@ function getToken() {
 export function clearAuth() {
   localStorage.removeItem('mkd_access_token')
   window.dispatchEvent(new CustomEvent('mkd-auth-change'))
+}
+
+/** Роль из JWT (для отображения пунктов только суперадмину). */
+function getRoleFromToken(t) {
+  if (!t) return null
+  try {
+    const payload = JSON.parse(atob(t.split('.')[1]))
+    return payload.role || null
+  } catch {
+    return null
+  }
 }
 
 function Home() {
@@ -144,6 +156,9 @@ function App() {
                 <Link to="/admin/contacts">Добавить контакт</Link>
                 <Link to="/admin/contacts/list">Контакты</Link>
                 <Link to="/admin/audit">Аудит-лог</Link>
+                {getRoleFromToken(token) === 'super_administrator' && (
+                  <Link to="/admin/superadmin">Управление админами</Link>
+                )}
                 <Link to="/admin/change-password">Смена пароля</Link>
                 <button type="button" className="nav-logout" onClick={() => { clearAuth(); setToken(null) }}>Выйти</button>
               </>
@@ -167,6 +182,7 @@ function App() {
         <Route path="/admin/contacts/list" element={<AdminContactsList />} />
         <Route path="/admin/audit" element={<AuditLog />} />
         <Route path="/admin/change-password" element={<ChangePassword />} />
+        <Route path="/admin/superadmin" element={<SuperadminAdmins />} />
         </Routes>
       </div>
     </div>
