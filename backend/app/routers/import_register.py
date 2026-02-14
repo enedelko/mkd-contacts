@@ -13,7 +13,7 @@ from app.import_register import (
     parse_file,
     run_import,
 )
-from app.jwt_utils import require_admin
+from app.jwt_utils import require_super_admin
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +25,10 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB (NFR Performance)
 @router.post("/import/register")
 def import_register(
     file: UploadFile = File(...),
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_super_admin),
 ) -> dict[str, Any]:
     """
-    CORE-01: Загрузка реестра помещений и контактов (CSV, XLS, XLSX).
+    CORE-01: Загрузка реестра помещений и контактов (CSV, XLS, XLSX). Только суперадмин.
     multipart/form-data, поле file. Ответ: accepted, rejected, errors[].
     """
     if not file.filename:
