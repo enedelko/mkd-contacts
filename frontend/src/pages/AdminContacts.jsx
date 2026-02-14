@@ -4,13 +4,33 @@
  * Редактирование: /admin/contacts/:id — загрузка данных + PUT.
  */
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { clearAuth } from '../App'
+import TelegramIcon from '../components/TelegramIcon'
+import { formatPhoneOnBlur } from '../utils/phoneFormat'
 
 const API = '/api/premises'
 
+function telegramProfileLink(telegramId) {
+  if (!telegramId || !String(telegramId).trim()) return null
+  const id = String(telegramId).trim()
+  if (/^\d+$/.test(id)) return `tg://user?id=${id}`
+  return `https://t.me/${id.replace(/^@/, '')}`
+}
+
+function telegramLinkByPhone(phone) {
+  if (!phone || !String(phone).trim()) return null
+  let digits = String(phone).replace(/\D/g, '')
+  if (digits.length < 10) return null
+  if (digits.startsWith('8') && digits.length === 11) digits = '7' + digits.slice(1)
+  if (digits.startsWith('7') && digits.length === 11) return `https://t.me/+${digits}`
+  if (digits.length >= 10) return `https://t.me/+${digits}`
+  return null
+}
+
 export default function AdminContacts() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id: editId } = useParams()
   const isEdit = Boolean(editId)
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mkd_access_token') : null
@@ -31,6 +51,7 @@ export default function AdminContacts() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [telegramId, setTelegramId] = useState('')
+  const [howToAddress, setHowToAddress] = useState('')
   const [barrierVote, setBarrierVote] = useState('')
   const [voteFormat, setVoteFormat] = useState('')
   const [registeredEd, setRegisteredEd] = useState('')
@@ -68,6 +89,7 @@ export default function AdminContacts() {
         setPhone(data.phone || '')
         setEmail(data.email || '')
         setTelegramId(data.telegram_id || '')
+        setHowToAddress(data.how_to_address || '')
         setBarrierVote(data.barrier_vote || '')
         setVoteFormat(data.vote_format || '')
         setRegisteredEd(data.registered_ed || '')
@@ -174,6 +196,7 @@ export default function AdminContacts() {
         phone: phone.trim() || null,
         email: email.trim() || null,
         telegram_id: telegramId.trim() || null,
+        how_to_address: howToAddress.trim() || null,
         barrier_vote: isOwner ? (barrierVote || null) : null,
         vote_format: isOwner ? (voteFormat || null) : null,
         registered_ed: isOwner ? (registeredEd || null) : null,
@@ -202,7 +225,7 @@ export default function AdminContacts() {
           setMessage({ type: 'success', text: 'Контакт обновлён' })
         } else {
           setMessage({ type: 'success', text: `Контакт создан (id: ${data.contact_id}, статус: ${data.status})` })
-          setIsOwner(true); setPhone(''); setEmail(''); setTelegramId('')
+          setIsOwner(true); setPhone(''); setEmail(''); setTelegramId(''); setHowToAddress('')
           setBarrierVote(''); setVoteFormat(''); setRegisteredEd('')
         }
       } else {
@@ -324,8 +347,18 @@ export default function AdminContacts() {
         <fieldset>
           <legend>Контактные данные (хотя бы одно поле)</legend>
           <label>
+            Обращение (как обращаться к жителю/собственнику):{' '}
+            <input type="text" value={howToAddress} onChange={(e) => setHowToAddress(e.target.value)} placeholder="например: Иван Сергеевич" />
+          </label>
+          <label>
             Телефон:{' '}
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 ..." />
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              onBlur={(e) => setPhone(formatPhoneOnBlur(e.target.value))}
+              placeholder="+7 ..."
+            />
           </label>
           {errors.phone && <span className="field-error">{errors.phone}</span>}
           <label>
@@ -333,9 +366,20 @@ export default function AdminContacts() {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
           {errors.email && <span className="field-error">{errors.email}</span>}
-          <label>
+          <label className="label-with-icon">
             Telegram (id или @username):{' '}
             <input type="text" value={telegramId} onChange={(e) => setTelegramId(e.target.value)} />
+            {(telegramId?.trim() && telegramProfileLink(telegramId)) || (phone?.trim() && telegramLinkByPhone(phone)) ? (
+              <a
+                href={telegramProfileLink(telegramId) || telegramLinkByPhone(phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="telegram-link-icon"
+                title={telegramId?.trim() ? 'Написать в Telegram' : 'Написать по номеру телефона'}
+              >
+                <TelegramIcon width={24} height={24} />
+              </a>
+            ) : null}
           </label>
           {errors.telegram_id && <span className="field-error">{errors.telegram_id}</span>}
           {errors.contact && <span className="field-error">{errors.contact}</span>}
@@ -389,7 +433,7 @@ export default function AdminContacts() {
           {loading ? 'Сохранение…' : isEdit ? 'Сохранить изменения' : 'Сохранить контакт'}
         </button>
         {isEdit && (
-          <button type="button" style={{ marginLeft: '0.5rem' }} onClick={() => navigate('/admin/contacts/list')}>
+          <button type="button" style={{ marginLeft: '0.5rem' }} onClick={() => navigate('/admin/contacts/list', { state: { entrance: location.state?.fromEntrance } })}>
             Назад к списку
           </button>
         )}

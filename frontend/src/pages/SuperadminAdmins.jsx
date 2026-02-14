@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearAuth } from '../App'
+import TelegramIcon from '../components/TelegramIcon'
 
 function getToken() {
   if (typeof window === 'undefined') return null
@@ -153,6 +154,9 @@ export default function SuperadminAdmins() {
 
   if (!token) return null
 
+  /** Ссылка на чат с админом по Telegram ID */
+  const telegramChatUrl = (telegramId) => (telegramId ? `tg://user?id=${String(telegramId).trim()}` : null)
+
   return (
     <div className="superadmin-admins-page">
       <h1>Управление администраторами</h1>
@@ -205,6 +209,7 @@ export default function SuperadminAdmins() {
             <thead>
               <tr>
                 <th>Telegram ID</th>
+                <th title="Чат в Telegram">ТГ</th>
                 <th>Роль</th>
                 <th>Логин</th>
                 <th>Добавлен</th>
@@ -215,6 +220,13 @@ export default function SuperadminAdmins() {
               {list.map((a) => (
                 <tr key={a.telegram_id}>
                   <td>{a.telegram_id}</td>
+                  <td>
+                    {telegramChatUrl(a.telegram_id) && (
+                      <a href={telegramChatUrl(a.telegram_id)} target="_blank" rel="noopener noreferrer" className="link-telegram-chat" title="Написать в Telegram">
+                        <TelegramIcon width={20} height={20} />
+                      </a>
+                    )}
+                  </td>
                   <td>{a.role === 'super_administrator' ? 'Суперадмин' : 'Администратор'}</td>
                   <td>{a.has_login ? 'Да' : '—'}</td>
                   <td>{a.created_at ? new Date(a.created_at).toLocaleDateString('ru-RU') : '—'}</td>

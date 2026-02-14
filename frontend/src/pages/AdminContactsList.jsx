@@ -1,28 +1,39 @@
 /**
- * VAL-01: Список контактов для модерации — просмотр и смена статуса.
- * Фильтрация по помещению и статусу. Расшифрованные ПДн приходят с сервера.
+ * CORE-03 / ADM-02: Список контактов для модерации.
+ * Список только после выбора подъезда (кнопки); поиск по номеру помещения, фильтры IP/даты; по клику по строке — просмотр.
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { clearAuth } from '../App'
+import TelegramIcon from '../components/TelegramIcon'
 
 const STATUS_LABELS = { pending: 'Ожидает', validated: 'Валидирован', inactive: 'Неактуальный' }
 const STATUS_OPTIONS = ['pending', 'validated', 'inactive']
 
+const BARRIER_VOTE_LABELS = { for: 'ЗА', against: 'Против', undecided: 'Не определился' }
+const VOTE_FORMAT_LABELS = { electronic: 'Электронно', paper: 'Бумага', undecided: 'Не определился' }
+const REGISTERED_ED_LABELS = { yes: 'Да', no: 'Нет' }
+
 export default function AdminContactsList() {
   const navigate = useNavigate()
+  const location = useLocation()
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mkd_access_token') : null
+
+  const [entrances, setEntrances] = useState([])
+  const [entrancesLoading, setEntrancesLoading] = useState(true)
+  const [selectedEntrance, setSelectedEntrance] = useState(null)
 
   const [contacts, setContacts] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // Фильтры
-  const [filterPremise, setFilterPremise] = useState('')
+  const [filterPremisesNumber, setFilterPremisesNumber] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [filterIp, setFilterIp] = useState('')
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
 
-  // Массовые действия (CORE-03)
   const [selected, setSelected] = useState(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
 
@@ -30,14 +41,39 @@ export default function AdminContactsList() {
     if (!token) navigate('/login', { replace: true })
   }, [token, navigate])
 
-  const fetchContacts = useCallback(async () => {
+  useEffect(() => {
     if (!token) return
+    setEntrancesLoading(true)
+    fetch('/api/premises/entrances', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => {
+        if (r.status === 401 || r.status === 403) { clearAuth(); navigate('/login', { replace: true }); return null }
+        return r.ok ? r.json() : null
+      })
+      .then((data) => {
+        if (data && Array.isArray(data.entrances)) setEntrances(data.entrances)
+      })
+      .finally(() => setEntrancesLoading(false))
+  }, [token, navigate])
+
+  useEffect(() => {
+    const entranceFromState = location.state?.entrance
+    if (entranceFromState != null && entranceFromState !== '') {
+      setSelectedEntrance(entranceFromState)
+    }
+  }, [location.state?.entrance])
+
+  const fetchContacts = useCallback(async () => {
+    if (!token || !selectedEntrance) return
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
-      if (filterPremise.trim()) params.set('premise_id', filterPremise.trim())
+      params.set('entrance', selectedEntrance)
+      if (filterPremisesNumber.trim()) params.set('premises_number', filterPremisesNumber.trim())
       if (filterStatus) params.set('status', filterStatus)
+      if (filterIp.trim()) params.set('ip', filterIp.trim())
+      if (filterFrom) params.set('from_date', filterFrom)
+      if (filterTo) params.set('to_date', filterTo)
       const res = await fetch(`/api/admin/contacts?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -58,13 +94,19 @@ export default function AdminContactsList() {
     } finally {
       setLoading(false)
     }
-  }, [token, filterPremise, filterStatus, navigate])
+  }, [token, selectedEntrance, filterPremisesNumber, filterStatus, filterIp, filterFrom, filterTo, navigate])
 
   useEffect(() => {
-    fetchContacts()
-  }, [fetchContacts])
+    if (selectedEntrance) fetchContacts()
+    else {
+      setContacts([])
+      setTotal(0)
+      setError(null)
+    }
+  }, [selectedEntrance, fetchContacts])
 
-  const handleStatusChange = async (contactId, newStatus) => {
+  const handleStatusChange = async (contactId, newStatus, e) => {
+    e?.stopPropagation()
     if (!token) return
     try {
       const res = await fetch(`/api/admin/contacts/${contactId}/status`, {
@@ -93,7 +135,8 @@ export default function AdminContactsList() {
     }
   }
 
-  const toggleSelect = (id) => {
+  const toggleSelect = (id, e) => {
+    e?.stopPropagation()
     setSelected((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -102,7 +145,8 @@ export default function AdminContactsList() {
     })
   }
 
-  const toggleSelectAll = () => {
+  const toggleSelectAll = (e) => {
+    e?.stopPropagation()
     if (selected.size === contacts.length) {
       setSelected(new Set())
     } else {
@@ -148,23 +192,83 @@ export default function AdminContactsList() {
     const parts = []
     if (c.entrance) parts.push(`п.${c.entrance}`)
     if (c.floor) parts.push(`эт.${c.floor}`)
-    if (c.premises_type) parts.push(c.premises_type)
-    if (c.premises_number) parts.push(`№${c.premises_number}`)
+    if (c.premises_type && c.premises_number) {
+      parts.push(`${c.premises_type} ${c.premises_number}`)
+    } else if (c.premises_number) {
+      parts.push(c.premises_number)
+    } else if (c.premises_type) {
+      parts.push(c.premises_type)
+    }
     return parts.length ? parts.join(', ') : c.premise_id
+  }
+
+  const onRowClick = (contactId) => {
+    navigate(`/admin/contacts/${contactId}`, { state: { fromEntrance: selectedEntrance } })
+  }
+
+  const telegramLink = (telegramId) => {
+    if (!telegramId || !String(telegramId).trim()) return null
+    const id = String(telegramId).trim()
+    if (/^\d+$/.test(id)) return `tg://user?id=${id}`
+    return `https://t.me/${id.replace(/^@/, '')}`
+  }
+
+  const telegramLinkByPhone = (phone) => {
+    if (!phone || !String(phone).trim()) return null
+    let digits = String(phone).replace(/\D/g, '')
+    if (digits.length < 10) return null
+    if (digits.startsWith('8') && digits.length === 11) digits = '7' + digits.slice(1)
+    if (digits.startsWith('7') && digits.length === 11) return `https://t.me/+${digits}`
+    if (digits.length >= 10) return `https://t.me/+${digits}`
+    return null
+  }
+
+  if (!selectedEntrance) {
+    return (
+      <div className="admin-contacts-list-page">
+        <h1>Контакты</h1>
+        <p className="entrance-prompt">Выберите подъезд, чтобы увидеть список контактов.</p>
+        {entrancesLoading ? (
+          <p className="loading">Загрузка подъездов…</p>
+        ) : entrances.length === 0 ? (
+          <p className="empty-message">Нет данных о подъездах. Загрузите реестр.</p>
+        ) : (
+          <div className="entrance-buttons" role="group" aria-label="Выбор подъезда">
+            {entrances.map((ent) => (
+              <button
+                key={ent}
+                type="button"
+                className="entrance-btn"
+                onClick={() => setSelectedEntrance(ent)}
+              >
+                Подъезд {ent}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
     <div className="admin-contacts-list-page">
       <h1>Контакты</h1>
 
+      <div className="entrance-bar">
+        <span className="entrance-current">Подъезд: {selectedEntrance}</span>
+        <button type="button" className="btn-link" onClick={() => setSelectedEntrance(null)}>
+          Выбрать другой подъезд
+        </button>
+      </div>
+
       <div className="filters-bar">
         <label>
-          Помещение (кад. №):
+          Номер квартиры/помещения:
           <input
             type="text"
-            value={filterPremise}
-            onChange={(e) => setFilterPremise(e.target.value)}
-            placeholder="77:01:..."
+            value={filterPremisesNumber}
+            onChange={(e) => setFilterPremisesNumber(e.target.value)}
+            placeholder="№"
           />
         </label>
         <label>
@@ -176,6 +280,31 @@ export default function AdminContactsList() {
             ))}
           </select>
         </label>
+        <label>
+          IP:
+          <input
+            type="text"
+            value={filterIp}
+            onChange={(e) => setFilterIp(e.target.value)}
+            placeholder="Фильтр по IP"
+          />
+        </label>
+        <label>
+          Дата с:
+          <input
+            type="date"
+            value={filterFrom}
+            onChange={(e) => setFilterFrom(e.target.value)}
+          />
+        </label>
+        <label>
+          Дата по:
+          <input
+            type="date"
+            value={filterTo}
+            onChange={(e) => setFilterTo(e.target.value)}
+          />
+        </label>
         <button type="button" onClick={fetchContacts} disabled={loading}>
           {loading ? 'Загрузка…' : 'Обновить'}
         </button>
@@ -185,7 +314,6 @@ export default function AdminContactsList() {
 
       <p className="total-info">Найдено: {total}</p>
 
-      {/* CORE-03: панель массовых действий */}
       {selected.size > 0 && (
         <div className="bulk-actions">
           <span>Выбрано: {selected.size}</span>
@@ -209,13 +337,14 @@ export default function AdminContactsList() {
           <thead>
             <tr>
               <th><input type="checkbox" checked={contacts.length > 0 && selected.size === contacts.length} onChange={toggleSelectAll} /></th>
-              <th>ID</th>
               <th>Помещение</th>
               <th>Статус</th>
-              <th>Собственник</th>
+              <th className="col-tg">ТГ</th>
+              <th>Обращение</th>
               <th>Телефон</th>
               <th>Email</th>
-              <th>Telegram</th>
+              <th className="col-owner">Собств.</th>
+              <th>IP</th>
               <th>Шлагбаумы</th>
               <th>Голосование</th>
               <th>Эл. дом</th>
@@ -224,36 +353,59 @@ export default function AdminContactsList() {
             </tr>
           </thead>
           <tbody>
-            {contacts.map((c) => (
-              <tr key={c.id} className={`status-${c.status}`}>
-                <td><input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} /></td>
-                <td>{c.id}</td>
+            {contacts.map((c, index) => (
+              <tr
+                key={c.id}
+                className={`status-${c.status} clickable-row row-stripe-${index % 4}`}
+                onClick={() => onRowClick(c.id)}
+              >
+                <td onClick={(e) => toggleSelect(c.id, e)}>
+                  <input type="checkbox" checked={selected.has(c.id)} onChange={() => {}} />
+                </td>
                 <td title={c.premise_id}>{premiseLabel(c)}</td>
                 <td>
                   <span className={`status-badge ${c.status}`}>{STATUS_LABELS[c.status] || c.status}</span>
                 </td>
-                <td>{c.is_owner ? 'Да' : 'Нет'}</td>
+                <td onClick={(e) => e.stopPropagation()} className="col-tg">
+                  {(c.telegram_id && telegramLink(c.telegram_id)) || (c.phone && telegramLinkByPhone(c.phone)) ? (
+                    <a
+                      href={telegramLink(c.telegram_id) || telegramLinkByPhone(c.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-icon-link"
+                      title={c.telegram_id ? 'Открыть в Telegram' : 'Написать по номеру телефона'}
+                    >
+                      <TelegramIcon width={20} height={20} />
+                    </a>
+                  ) : '—'}
+                </td>
+                <td>{c.how_to_address || '—'}</td>
                 <td>{c.phone || '—'}</td>
-                <td>{c.email || '—'}</td>
-                <td>{c.telegram_id || '—'}</td>
-                <td>{c.barrier_vote || '—'}</td>
-                <td>{c.vote_format || '—'}</td>
-                <td>{c.registered_ed || '—'}</td>
-                <td>{c.created_at ? new Date(c.created_at).toLocaleDateString('ru-RU') : '—'}</td>
-                <td className="actions">
-                  <Link to={`/admin/contacts/${c.id}`} className="btn-edit">Редактировать</Link>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {c.email ? (
+                    <a href={`mailto:${c.email}`} className="btn-icon-link" title="Написать письмо">📧</a>
+                  ) : '—'}
+                </td>
+                <td className="col-owner">{c.is_owner ? 'Да' : 'Нет'}</td>
+                <td>{c.ip || '—'}</td>
+                <td>{c.barrier_vote ? (BARRIER_VOTE_LABELS[c.barrier_vote] ?? c.barrier_vote) : '—'}</td>
+                <td>{c.vote_format ? (VOTE_FORMAT_LABELS[c.vote_format] ?? c.vote_format) : '—'}</td>
+                <td>{c.registered_ed ? (REGISTERED_ED_LABELS[c.registered_ed] ?? c.registered_ed) : '—'}</td>
+                <td>{c.created_at ? new Date(c.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}</td>
+                <td className="actions" onClick={(e) => e.stopPropagation()}>
+                  <Link to={`/admin/contacts/${c.id}`} state={{ fromEntrance: selectedEntrance }} className="btn-edit">Редактировать</Link>
                   {c.status !== 'validated' && (
-                    <button type="button" className="btn-validate" onClick={() => handleStatusChange(c.id, 'validated')}>
+                    <button type="button" className="btn-validate" onClick={(e) => handleStatusChange(c.id, 'validated', e)}>
                       Валидировать
                     </button>
                   )}
                   {c.status !== 'pending' && (
-                    <button type="button" className="btn-pending" onClick={() => handleStatusChange(c.id, 'pending')}>
+                    <button type="button" className="btn-pending" onClick={(e) => handleStatusChange(c.id, 'pending', e)}>
                       Сбросить
                     </button>
                   )}
                   {c.status !== 'inactive' && (
-                    <button type="button" className="btn-inactive" onClick={() => handleStatusChange(c.id, 'inactive')}>
+                    <button type="button" className="btn-inactive" onClick={(e) => handleStatusChange(c.id, 'inactive', e)}>
                       Неактуальный
                     </button>
                   )}
@@ -264,8 +416,8 @@ export default function AdminContactsList() {
         </table>
       )}
 
-      {!loading && contacts.length === 0 && !error && (
-        <p className="empty-message">Контакты не найдены.</p>
+      {!loading && selectedEntrance && contacts.length === 0 && !error && (
+        <p className="empty-message">В выбранном подъезде контакты не найдены.</p>
       )}
     </div>
   )

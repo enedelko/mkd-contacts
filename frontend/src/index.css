@@ -58,6 +58,10 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .admin-contacts-page .field-error { display: block; color: #c62828; font-size: 0.9rem; }
 .admin-contacts-page .form-message.success { color: #2e7d32; margin-top: 1rem; }
 .admin-contacts-page .form-message.error { color: #c62828; margin-top: 1rem; }
+.admin-contacts-page .label-with-icon { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.admin-contacts-page .label-with-icon input { flex: 1; min-width: 12rem; }
+.admin-contacts-page .telegram-link-icon { display: inline-flex; margin-left: 0.25rem; }
+.admin-contacts-page .telegram-link-icon:hover { opacity: 0.85; }
 .admin-contacts-list-page { max-width: 1200px; }
 .admin-contacts-list-page .filters-bar { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin: 1rem 0; }
 .admin-contacts-list-page .filters-bar label { display: flex; flex-direction: column; font-size: 0.9rem; }
@@ -67,9 +71,25 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .admin-contacts-list-page .total-info { color: #555; font-size: 0.9rem; }
 .admin-contacts-list-page .list-error { color: #c62828; }
 .admin-contacts-list-page .empty-message { color: #666; }
+.admin-contacts-list-page .entrance-prompt { margin: 1rem 0; color: #555; }
+.admin-contacts-list-page .entrance-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.admin-contacts-list-page .entrance-btn { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; border: 1px solid #007bff; border-radius: 6px; background: #fff; color: #007bff; }
+.admin-contacts-list-page .entrance-btn:hover { background: #e7f1ff; }
+.admin-contacts-list-page .entrance-bar { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; }
+.admin-contacts-list-page .entrance-current { font-weight: 500; }
+.admin-contacts-list-page .btn-link { background: none; border: none; color: #007bff; cursor: pointer; text-decoration: underline; font-size: 0.95rem; padding: 0; }
+.admin-contacts-list-page .btn-link:hover { color: #0056b3; }
+.admin-contacts-list-page .contacts-table tr.clickable-row { cursor: pointer; }
+.admin-contacts-list-page .contacts-table tr.clickable-row:hover { background: #e3f2fd !important; }
 .contacts-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
 .contacts-table th, .contacts-table td { border: 1px solid #ddd; padding: 0.4rem 0.5rem; text-align: left; white-space: nowrap; }
 .contacts-table th { background: #f5f5f5; position: sticky; top: 0; }
+.contacts-table .col-owner { width: 1%; text-align: center; }
+.contacts-table .col-tg { width: 1%; text-align: center; }
+.contacts-table tbody tr.row-stripe-0 { background: #fff; }
+.contacts-table tbody tr.row-stripe-1 { background: #fafafa; }
+.contacts-table tbody tr.row-stripe-2 { background: #f4f4f4; }
+.contacts-table tbody tr.row-stripe-3 { background: #eee; }
 .contacts-table tr.status-inactive { opacity: 0.55; }
 .status-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
 .status-badge.pending { background: #fff3cd; color: #856404; }
@@ -85,6 +105,8 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .contacts-table .btn-pending:hover { background: #d1ecf1; }
 .contacts-table .btn-inactive { color: #856404; border-color: #ffc107; }
 .contacts-table .btn-inactive:hover { background: #fff3cd; }
+.contacts-table .btn-icon-link { display: inline-block; text-decoration: none; font-size: 1.1rem; line-height: 1; padding: 0.1rem; }
+.contacts-table .btn-icon-link:hover { opacity: 0.8; }
 /* CORE-03: массовые действия */
 .bulk-actions { display: flex; gap: 0.5rem; align-items: center; margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #e3f2fd; border-radius: 6px; flex-wrap: wrap; }
 .bulk-actions span { font-weight: 600; font-size: 0.9rem; }
@@ -99,6 +121,8 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .audit-log-page .total-info { color: #555; font-size: 0.9rem; }
 .audit-log-page .list-error { color: #c62828; }
 .audit-log-page .empty-message { color: #666; }
+.link-telegram-chat { display: inline-flex; align-items: center; color: #0088cc; text-decoration: none; }
+.link-telegram-chat:hover { opacity: 0.85; }
 .audit-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
 .audit-table th, .audit-table td { border: 1px solid #ddd; padding: 0.4rem 0.5rem; text-align: left; }
 .audit-table th { background: #f5f5f5; position: sticky; top: 0; }

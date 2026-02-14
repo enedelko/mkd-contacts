@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 @router.get("/audit")
 def list_audit(
-    entity_type: str | None = Query(None, description="Фильтр по типу сущности: contact, premise"),
+    entity_type: str | None = Query(None, description="Фильтр по типу сущности: contact, premise, admin (ADM-05)"),
     action: str | None = Query(None, description="Фильтр по действию: insert, update, delete, select, status_change"),
     user_id: str | None = Query(None, description="Фильтр по ID пользователя"),
     limit: int = Query(50, ge=1, le=500, description="Кол-во записей"),
@@ -25,10 +25,13 @@ def list_audit(
     """
     BE-03 / SR-BE03-005: список записей аудит-лога с фильтрами.
     ПДн не хранятся в логе (SR-BE03-006).
+    SR-ADM05-004: записи entity_type=admin видны только суперадмину.
     """
     clauses = []
     params: dict[str, Any] = {"lim": limit, "off": offset}
 
+    if payload.get("role") != "super_administrator":
+        clauses.append("entity_type != 'admin'")
     if entity_type:
         clauses.append("entity_type = :et")
         params["et"] = entity_type

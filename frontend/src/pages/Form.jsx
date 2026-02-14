@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { formatPhoneOnBlur } from '../utils/phoneFormat'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
 const POLICY_URL = import.meta.env.VITE_POLICY_URL || '/policy'
@@ -146,7 +147,13 @@ export default function Form() {
           <legend>Контакт (хотя бы одно поле)</legend>
           <label>
             Телефон:{' '}
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+7 ..." />
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              onBlur={(e) => setPhone(formatPhoneOnBlur(e.target.value))}
+              placeholder="+7 ..."
+            />
           </label>
           {errors.phone && <span className="field-error">{errors.phone}</span>}
           <label>

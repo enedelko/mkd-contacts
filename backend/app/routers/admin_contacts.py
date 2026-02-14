@@ -35,36 +35,61 @@ def _client_ip(request: Request) -> str | None:
 @router.get("/contacts")
 def list_contacts(
     request: Request,
+    entrance: str | None = Query(None, description="Фильтр по подъезду (CORE-03)"),
     premise_id: str | None = Query(None, description="Фильтр по кадастровому номеру помещения"),
+    premises_number: str | None = Query(None, description="Поиск по номеру квартиры/помещения"),
     status: str | None = Query(None, description="Фильтр по статусу: pending | validated | inactive"),
+    ip: str | None = Query(None, description="Фильтр по IP (ADM-02)"),
+    from_date: str | None = Query(None, description="Начало диапазона дат created_at (ISO)"),
+    to_date: str | None = Query(None, description="Конец диапазона дат created_at (ISO)"),
     payload: dict = Depends(require_admin),
 ) -> dict[str, Any]:
     """
-    VAL-01: Список контактов для модерации. Расшифровка ПДн на лету.
-    Опционально фильтрация по помещению и/или статусу.
+    VAL-01 / CORE-03 / ADM-02: Список контактов для модерации. Расшифровка ПДн на лету.
+    Фильтры: entrance, premise_id, premises_number, status, ip, from_date, to_date.
     """
     clauses = []
     params: dict[str, Any] = {}
+    if entrance:
+        clauses.append("p.entrance = :entrance")
+        params["entrance"] = entrance.strip()
     if premise_id:
         clauses.append("c.premise_id = :pid")
         params["pid"] = premise_id
+    if premises_number:
+        clauses.append("TRIM(COALESCE(p.premises_number, '')) = :pn")
+        params["pn"] = premises_number.strip()
     if status:
         clauses.append("c.status = :st")
         params["st"] = status
+    if ip:
+        clauses.append("c.ip = :ip")
+        params["ip"] = ip.strip()
+    if from_date:
+        clauses.append("c.created_at >= :from_ts")
+        params["from_ts"] = from_date.strip()
+    if to_date:
+        to_val = to_date.strip()
+        if len(to_val) == 10:
+            to_val = f"{to_val}T23:59:59.999999"
+        clauses.append("c.created_at <= :to_ts")
+        params["to_ts"] = to_val
     where = (" AND ".join(clauses)) if clauses else "1=1"
 
     with get_db() as db:
         rows = db.execute(
             text(
-                f"SELECT c.id, c.premise_id, c.is_owner, c.phone, c.email, c.telegram_id, "
-                f"c.registered_in_ed, c.status, c.created_at, c.updated_at, "
+                f"SELECT c.id, c.premise_id, c.is_owner, c.phone, c.email, c.telegram_id, c.how_to_address, "
+                f"c.registered_in_ed, c.status, c.created_at, c.updated_at, c.ip, "
                 f"p.entrance, p.floor, p.premises_type, p.premises_number, "
                 f"o.barrier_vote, o.vote_format "
                 f"FROM contacts c "
                 f"LEFT JOIN premises p ON p.cadastral_number = c.premise_id "
                 f"LEFT JOIN oss_voting o ON o.contact_id = c.id "
                 f"WHERE {where} "
-                f"ORDER BY c.id DESC"
+                f"ORDER BY p.premises_type NULLS LAST, "
+                f"(NULLIF(TRIM(REGEXP_REPLACE(COALESCE(p.premises_number, ''), '[^0-9].*', '')), '')::int) NULLS LAST, "
+                f"p.premises_number NULLS LAST, c.id DESC"
             ),
             params,
         ).fetchall()
@@ -79,16 +104,18 @@ def list_contacts(
             "phone": decrypt(r[3]),
             "email": decrypt(r[4]),
             "telegram_id": decrypt(r[5]),
-            "registered_ed": r[6],
-            "status": r[7],
-            "created_at": r[8].isoformat() if r[8] else None,
-            "updated_at": r[9].isoformat() if r[9] else None,
-            "entrance": r[10],
-            "floor": r[11],
-            "premises_type": r[12],
-            "premises_number": r[13],
-            "barrier_vote": r[14],
-            "vote_format": r[15],
+            "how_to_address": decrypt(r[6]),
+            "registered_ed": r[7],
+            "status": r[8],
+            "created_at": r[9].isoformat() if r[9] else None,
+            "updated_at": r[10].isoformat() if r[10] else None,
+            "ip": r[11],
+            "entrance": r[12],
+            "floor": r[13],
+            "premises_type": r[14],
+            "premises_number": r[15],
+            "barrier_vote": r[16],
+            "vote_format": r[17],
         })
         contact_ids.append(str(r[0]))
 
@@ -120,7 +147,7 @@ def get_contact(
     with get_db() as db:
         r = db.execute(
             text(
-                "SELECT c.id, c.premise_id, c.is_owner, c.phone, c.email, c.telegram_id, "
+                "SELECT c.id, c.premise_id, c.is_owner, c.phone, c.email, c.telegram_id, c.how_to_address, "
                 "c.registered_in_ed, c.status, c.created_at, c.updated_at, "
                 "p.entrance, p.floor, p.premises_type, p.premises_number, "
                 "o.barrier_vote, o.vote_format "
@@ -144,11 +171,12 @@ def get_contact(
     return {
         "id": r[0], "premise_id": r[1], "is_owner": r[2],
         "phone": decrypt(r[3]), "email": decrypt(r[4]), "telegram_id": decrypt(r[5]),
-        "registered_ed": r[6], "status": r[7],
-        "created_at": r[8].isoformat() if r[8] else None,
-        "updated_at": r[9].isoformat() if r[9] else None,
-        "entrance": r[10], "floor": r[11], "premises_type": r[12], "premises_number": r[13],
-        "barrier_vote": r[14], "vote_format": r[15],
+        "how_to_address": decrypt(r[6]),
+        "registered_ed": r[7], "status": r[8],
+        "created_at": r[9].isoformat() if r[9] else None,
+        "updated_at": r[10].isoformat() if r[10] else None,
+        "entrance": r[11], "floor": r[12], "premises_type": r[13], "premises_number": r[14],
+        "barrier_vote": r[15], "vote_format": r[16],
     }
 
 
@@ -158,6 +186,7 @@ class AdminContactBody(BaseModel):
     phone: str | None = None
     email: str | None = None
     telegram_id: str | None = None
+    how_to_address: str | None = Field(None, description="Обращение (как обращаться к жителю/собственнику)")
     barrier_vote: str | None = Field(None, description="for | against | undecided")
     vote_format: str | None = Field(None, description="electronic | paper | undecided")
     registered_ed: str | None = Field(None, description="yes | no")
@@ -202,18 +231,20 @@ def create_contact(
         phone_enc = encrypt(body.phone) if body.phone else None
         email_enc = encrypt(body.email) if body.email else None
         telegram_id_enc = encrypt(body.telegram_id) if body.telegram_id else None
+        how_enc = encrypt(body.how_to_address) if body.how_to_address else None
         phone_idx = blind_index_phone(body.phone) if body.phone else None
         email_idx = blind_index_email(body.email) if body.email else None
         telegram_id_idx = blind_index_telegram_id(body.telegram_id) if body.telegram_id else None
 
         db.execute(
             text(
-                "INSERT INTO contacts (premise_id, is_owner, phone, email, telegram_id, phone_idx, email_idx, telegram_id_idx, "
-                "registered_in_ed, status, ip) VALUES (:pid, :io, :phone, :email, :tg, :pi, :ei, :ti, :re, 'validated', :ip)"
+                "INSERT INTO contacts (premise_id, is_owner, phone, email, telegram_id, how_to_address, "
+                "phone_idx, email_idx, telegram_id_idx, registered_in_ed, status, ip) "
+                "VALUES (:pid, :io, :phone, :email, :tg, :how, :pi, :ei, :ti, :re, 'validated', :ip)"
             ),
             {
                 "pid": cadastral, "io": body.is_owner,
-                "phone": phone_enc, "email": email_enc, "tg": telegram_id_enc,
+                "phone": phone_enc, "email": email_enc, "tg": telegram_id_enc, "how": how_enc,
                 "pi": phone_idx, "ei": email_idx, "ti": telegram_id_idx,
                 "re": body.registered_ed,
                 "ip": None,
@@ -240,6 +271,7 @@ class AdminContactUpdateBody(BaseModel):
     phone: str | None = None
     email: str | None = None
     telegram_id: str | None = None
+    how_to_address: str | None = Field(None, description="Обращение (как обращаться к жителю/собственнику)")
     barrier_vote: str | None = Field(None, description="for | against | undecided")
     vote_format: str | None = Field(None, description="electronic | paper | undecided")
     registered_ed: str | None = Field(None, description="yes | no")
@@ -276,19 +308,20 @@ def update_contact(
         phone_enc = encrypt(body.phone) if body.phone else None
         email_enc = encrypt(body.email) if body.email else None
         telegram_id_enc = encrypt(body.telegram_id) if body.telegram_id else None
+        how_enc = encrypt(body.how_to_address) if (body.how_to_address or "").strip() else None
         phone_idx = blind_index_phone(body.phone) if body.phone else None
         email_idx = blind_index_email(body.email) if body.email else None
         telegram_id_idx = blind_index_telegram_id(body.telegram_id) if body.telegram_id else None
 
         db.execute(
             text(
-                "UPDATE contacts SET is_owner = :io, phone = :phone, email = :email, telegram_id = :tg, "
+                "UPDATE contacts SET is_owner = :io, phone = :phone, email = :email, telegram_id = :tg, how_to_address = :how, "
                 "phone_idx = :pi, email_idx = :ei, telegram_id_idx = :ti, "
                 "registered_in_ed = :re, updated_at = CURRENT_TIMESTAMP WHERE id = :cid"
             ),
             {
                 "io": body.is_owner,
-                "phone": phone_enc, "email": email_enc, "tg": telegram_id_enc,
+                "phone": phone_enc, "email": email_enc, "tg": telegram_id_enc, "how": how_enc,
                 "pi": phone_idx, "ei": email_idx, "ti": telegram_id_idx,
                 "re": body.registered_ed, "cid": contact_id,
             },

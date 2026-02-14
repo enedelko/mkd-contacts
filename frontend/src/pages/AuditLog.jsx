@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearAuth } from '../App'
+import TelegramIcon from '../components/TelegramIcon'
 
 const ACTION_LABELS = {
   insert: 'Создание',
@@ -75,6 +76,12 @@ export default function AuditLog() {
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
 
+  /** Ссылка на чат с пользователем по Telegram ID (user_id в логе — это telegram_id админа) */
+  const telegramChatUrl = (telegramId) => {
+    if (!telegramId || String(telegramId).trim() === '') return null
+    return `tg://user?id=${String(telegramId).trim()}`
+  }
+
   return (
     <div className="audit-log-page">
       <h1>Аудит-лог</h1>
@@ -86,6 +93,7 @@ export default function AuditLog() {
             <option value="">Все</option>
             <option value="contact">Контакт</option>
             <option value="premise">Помещение</option>
+            <option value="admin">Админ</option>
           </select>
         </label>
         <label>
@@ -127,6 +135,7 @@ export default function AuditLog() {
               <th>Старое</th>
               <th>Новое</th>
               <th>Пользователь</th>
+              <th title="Чат в Telegram">ТГ</th>
               <th>IP</th>
             </tr>
           </thead>
@@ -141,6 +150,13 @@ export default function AuditLog() {
                 <td>{a.old_value || '—'}</td>
                 <td>{a.new_value || '—'}</td>
                 <td>{a.user_id || '—'}</td>
+                <td>
+                  {telegramChatUrl(a.user_id) ? (
+                    <a href={telegramChatUrl(a.user_id)} target="_blank" rel="noopener noreferrer" className="link-telegram-chat" title="Написать в Telegram">
+                      <TelegramIcon width={20} height={20} />
+                    </a>
+                  ) : '—'}
+                </td>
                 <td>{a.ip || '—'}</td>
               </tr>
             ))}
