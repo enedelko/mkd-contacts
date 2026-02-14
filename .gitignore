@@ -86,6 +86,9 @@ docker-compose.override.yml
 # Секреты (мастер-ключ шифрования и т.п.)
 secrets/
 
+# Бэкапы БД
+backups/
+
 # Node (frontend)
 node_modules/
 frontend/dist/

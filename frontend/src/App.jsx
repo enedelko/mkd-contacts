@@ -40,7 +40,7 @@ export function clearAuth() {
 }
 
 /** Роль из JWT (для отображения пунктов только суперадмину). */
-function getRoleFromToken(t) {
+export function getRoleFromToken(t) {
   if (!t) return null
   try {
     const payload = JSON.parse(atob(t.split('.')[1]))
@@ -149,11 +149,10 @@ function App() {
           <h1>Кворум-МКД</h1>
           <nav>
             <Link to="/">Главная</Link>
-            <Link to="/premises">Выбор помещения</Link>
             {token ? (
               <>
+                <Link to="/admin/contacts">Контакт по помещению</Link>
                 <Link to="/upload">Загрузка реестра</Link>
-                <Link to="/admin/contacts">Добавить контакт</Link>
                 <Link to="/admin/contacts/list">Контакты</Link>
                 <Link to="/admin/audit">Аудит-лог</Link>
                 {getRoleFromToken(token) === 'super_administrator' && (
@@ -163,7 +162,10 @@ function App() {
                 <button type="button" className="nav-logout" onClick={() => { clearAuth(); setToken(null) }}>Выйти</button>
               </>
             ) : (
-              <Link to="/login">Вход для администраторов</Link>
+              <>
+                <Link to="/premises">Контакт по помещению</Link>
+                <Link to="/login">Вход для администраторов</Link>
+              </>
             )}
           </nav>
         </div>
