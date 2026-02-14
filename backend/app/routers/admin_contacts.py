@@ -22,8 +22,19 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 VALID_STATUSES = ("pending", "validated", "inactive")
 
 
+def _client_ip(request: Request) -> str | None:
+    """IP клиента: за nginx — X-Forwarded-For или X-Real-IP, иначе request.client.host."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or None
+    if request.headers.get("x-real-ip"):
+        return request.headers.get("x-real-ip").strip() or None
+    return request.client.host if request.client else None
+
+
 @router.get("/contacts")
 def list_contacts(
+    request: Request,
     premise_id: str | None = Query(None, description="Фильтр по кадастровому номеру помещения"),
     status: str | None = Query(None, description="Фильтр по статусу: pending | validated | inactive"),
     payload: dict = Depends(require_admin),
@@ -81,12 +92,20 @@ def list_contacts(
         })
         contact_ids.append(str(r[0]))
 
-    # BE-03 / SR-BE03-004: логируем факт чтения контактов админом
+    # BE-03 / SR-BE03-004: логируем факт просмотра списка контактов (в т.ч. при пустом результате)
+    # entity_id в audit_log ограничен 128 символами — при длинном списке пишем list(N)
+    _AUDIT_ENTITY_ID_MAX = 128
     if contact_ids:
-        admin_id = payload.get("sub")
-        with get_db() as db2:
-            _audit_log(db2, "contact", ",".join(contact_ids), "select", None, None, admin_id, None)
-            db2.commit()
+        eid = ",".join(contact_ids)
+        if len(eid) > _AUDIT_ENTITY_ID_MAX:
+            eid = f"list({len(contact_ids)})"
+    else:
+        eid = "list"
+    admin_id = payload.get("sub")
+    client_ip = _client_ip(request)
+    with get_db() as db2:
+        _audit_log(db2, "contact", eid, "select", None, None, admin_id, client_ip)
+        db2.commit()
 
     return {"contacts": items, "total": len(items)}
 
@@ -94,6 +113,7 @@ def list_contacts(
 @router.get("/contacts/{contact_id}")
 def get_contact(
     contact_id: int,
+    request: Request,
     payload: dict = Depends(require_admin),
 ) -> dict[str, Any]:
     """Получить один контакт по ID с расшифровкой ПДн (для формы редактирования)."""
@@ -116,8 +136,9 @@ def get_contact(
 
     # BE-03 / SR-BE03-004: логируем факт чтения одного контакта
     admin_id = payload.get("sub")
+    client_ip = _client_ip(request)
     with get_db() as db2:
-        _audit_log(db2, "contact", str(contact_id), "select", None, None, admin_id, None)
+        _audit_log(db2, "contact", str(contact_id), "select", None, None, admin_id, client_ip)
         db2.commit()
 
     return {
@@ -154,6 +175,7 @@ def _resolve_premise_cadastral(premise_id: str, db) -> str | None:
 @router.post("/contacts")
 def create_contact(
     body: AdminContactBody,
+    request: Request,
     payload: dict = Depends(require_admin),
 ) -> dict[str, Any]:
     """
@@ -206,7 +228,7 @@ def create_contact(
                 {"cid": contact_id, "bv": body.barrier_vote, "vf": body.vote_format},
             )
         # BE-03 / SR-BE03-001: логируем INSERT контакта
-        _audit_log(db, "contact", str(contact_id), "insert", None, None, payload.get("sub"), None)
+        _audit_log(db, "contact", str(contact_id), "insert", None, None, payload.get("sub"), _client_ip(request))
         db.commit()
 
     logger.info("ADM-03: contact created by sub=%s premise_id=%s contact_id=%s", payload.get("sub"), cadastral, contact_id)
@@ -243,7 +265,7 @@ def update_contact(
     if not ok:
         raise HTTPException(status_code=400, detail=err)
 
-    client_ip = request.client.host if request.client else None
+    client_ip = _client_ip(request)
     admin_id = payload.get("sub")
 
     with get_db() as db:
@@ -330,7 +352,7 @@ def bulk_update_status(
     if len(body.contact_ids) > 200:
         raise HTTPException(status_code=400, detail="Максимум 200 контактов за раз")
 
-    client_ip = request.client.host if request.client else None
+    client_ip = _client_ip(request)
     admin_id = payload.get("sub")
     updated = 0
 
@@ -370,7 +392,7 @@ def update_contact_status(
     """
     if body.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail="status must be 'validated' or 'inactive'")
-    client_ip = request.client.host if request.client else None
+    client_ip = _client_ip(request)
     admin_id = payload.get("sub")
 
     with get_db() as db:
