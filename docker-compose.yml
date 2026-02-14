@@ -11,6 +11,7 @@ services:
     container_name: mkd-db
     environment:
       TZ: Europe/Moscow
+      PGTZ: Europe/Moscow  # Специальная переменная для PostgreSQL
       POSTGRES_USER: ${POSTGRES_USER:-mkd}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mkd_secret}
       POSTGRES_DB: ${POSTGRES_DB:-mkd_contacts}
