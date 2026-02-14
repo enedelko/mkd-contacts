@@ -24,9 +24,9 @@ class SubmitBody(BaseModel):
     phone: str | None = None
     email: str | None = None
     telegram_id: str | None = None
-    vote_for: bool = Field(..., description="Позиция ЗА (да/нет)")
-    vote_format: str = Field(..., description="paper | electronic")
-    registered_ed: bool = Field(..., description="Зарегистрирован в Электронном Доме")
+    barrier_vote: str | None = Field(None, description="for | against | undecided")
+    vote_format: str | None = Field(None, description="electronic | paper | undecided")
+    registered_ed: str | None = Field(None, description="yes | no")
     consent_version: str | None = None
     captcha_token: str | None = Field(None, alias="captcha_token")
 
@@ -43,7 +43,7 @@ def submit(
     client_ip = request.client.host if request.client else None
     allowed, retry_after = check_submit_rate_limit(client_ip or "", SUBMIT_RATE_LIMIT_PER_HOUR)
     if not allowed:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded", headers={"Retry-After": str(retry_after)})
+        raise HTTPException(status_code=429, detail="Превышен лимит отправок. Повторите позже.", headers={"Retry-After": str(retry_after)})
     captcha_ok = verify_turnstile(body.captcha_token, client_ip)
     result = submit_questionnaire(
         premise_id=body.premise_id,
@@ -51,7 +51,7 @@ def submit(
         phone=body.phone,
         email=body.email,
         telegram_id=body.telegram_id,
-        vote_for=body.vote_for,
+        barrier_vote=body.barrier_vote,
         vote_format=body.vote_format,
         registered_ed=body.registered_ed,
         consent_version=body.consent_version,
@@ -70,6 +70,6 @@ def submit(
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=400,
-            content={"detail": result.get("detail", "Validation failed"), "errors": result["errors"]},
+            content={"detail": result.get("detail", "Ошибка валидации"), "errors": result["errors"]},
         )
     raise HTTPException(status_code=400, detail=result.get("detail", "Error"))

@@ -71,7 +71,12 @@ export default function AuthCallback() {
           window.dispatchEvent(new CustomEvent('mkd-auth-change'))
           navigate('/', { replace: true })
         } else {
-          setError(data.detail || 'Ошибка входа')
+          const errMsg = typeof data.detail === 'string'
+            ? data.detail
+            : Array.isArray(data.detail)
+              ? data.detail.map((e) => e.msg || JSON.stringify(e)).join('; ')
+              : 'Ошибка входа'
+          setError(errMsg)
         }
       })
       .catch((err) => setError(err.message || 'Ошибка сети'))

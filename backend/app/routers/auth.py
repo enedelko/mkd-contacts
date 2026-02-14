@@ -1,5 +1,5 @@
 """
-ADM-01: Telegram OAuth callback, выдача JWT (white-list из admins).
+ADM-01: Telegram OAuth callback и вход по логину/паролю, выдача JWT (white-list из admins).
 Эндпоинт bot-id для построения URL входа в новом окне (popup) вместо iframe.
 Поддержка tg_auth_result: oauth.telegram.org в popup возвращает только id в base64 (без hash).
 """
@@ -9,16 +9,86 @@ import logging
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel
 
+from app.auth_password import (
+    get_admin_by_login,
+    get_admin_by_telegram_id_for_password,
+    set_admin_password,
+    verify_password,
+)
 from app.auth_telegram import get_admin_by_telegram_id, verify_telegram_login
 from app.config import TELEGRAM_BOT_TOKEN
-from app.jwt_utils import create_access_token
+from app.jwt_utils import create_access_token, require_admin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+class LoginBody(BaseModel):
+    login: str
+    password: str
+
+
+class ChangePasswordBody(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/login")
+def login_password(body: LoginBody) -> JSONResponse:
+    """Вход по логину и паролю. JWT в том же формате, что и при входе через Telegram."""
+    login = (body.login or "").strip()
+    if not login:
+        return JSONResponse(status_code=400, content={"detail": "Укажите логин"})
+    admin = get_admin_by_login(login)
+    if not admin:
+        logger.info("ADM-01: Login denied for unknown login=%s", login)
+        return JSONResponse(status_code=401, content={"detail": "Неверный логин или пароль"})
+    if not verify_password(body.password, admin.get("password_hash") or ""):
+        logger.info("ADM-01: Login denied for login=%s (bad password)", login)
+        return JSONResponse(status_code=401, content={"detail": "Неверный логин или пароль"})
+    token = create_access_token(telegram_id=admin["telegram_id"], role=admin["role"])
+    logger.info("ADM-01: Login by password login=%s telegram_id=%s role=%s", login, admin["telegram_id"], admin["role"])
+    return JSONResponse(
+        content={
+            "access_token": token,
+            "token_type": "bearer",
+            "role": admin["role"],
+        },
+    )
+
+
+@router.post("/change-password")
+def change_password(
+    body: ChangePasswordBody,
+    payload: dict = Depends(require_admin),
+) -> Response:
+    """Смена пароля для текущего администратора (по текущему паролю)."""
+    sub = payload.get("sub")
+    if not sub:
+        return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+    admin = get_admin_by_telegram_id_for_password(sub)
+    if not admin:
+        return JSONResponse(status_code=403, content={"detail": "Admin not found"})
+    if not admin.get("password_hash"):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Пароль не задан. Обратитесь к суперадмину для установки пароля."},
+        )
+    if not verify_password(body.current_password, admin["password_hash"]):
+        return JSONResponse(status_code=400, content={"detail": "Неверный текущий пароль"})
+    new = (body.new_password or "").strip()
+    if len(new) < 8:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Новый пароль должен быть не короче 8 символов"},
+        )
+    set_admin_password(sub, new)
+    return Response(status_code=204)
 
 
 @router.get("/telegram/bot-id")

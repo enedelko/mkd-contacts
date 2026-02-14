@@ -9,6 +9,8 @@ psycopg2-binary>=2.9.9,<3.0.0
 cryptography>=42.0.0,<44.0.0
 # ADM-01
 pyjwt>=2.8.0,<3.0.0
+passlib[bcrypt]>=1.7.4,<2.0.0
+bcrypt>=3.2.0,<4.1.0
 httpx>=0.26.0,<0.28.0
 # CORE-01 import (CSV, XLS/XLSX)
 openpyxl>=3.1.0,<3.2.0

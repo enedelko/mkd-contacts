@@ -7,6 +7,8 @@ from typing import Any
 
 from sqlalchemy import text
 
+from sqlalchemy import text as sa_text
+
 from app.crypto import (
     blind_index_email,
     blind_index_phone,
@@ -16,6 +18,20 @@ from app.crypto import (
 from app.db import get_db
 from app.import_register import _find_contact_by_indexes, _collision
 from app.validators import validate_phone, validate_email, validate_telegram_id
+
+
+def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str | None, new_value: str | None, user_id: str | None, ip: str | None) -> None:
+    """BE-03: запись в аудит-лог."""
+    try:
+        db.execute(
+            sa_text(
+                "INSERT INTO audit_log (entity_type, entity_id, action, old_value, new_value, user_id, ip) "
+                "VALUES (:et, :eid, :act, :old, :new, :uid, :ip)"
+            ),
+            {"et": entity_type, "eid": entity_id, "act": action, "old": old_value, "new": new_value, "uid": user_id, "ip": ip},
+        )
+    except Exception as e:
+        logger.warning("audit_log insert failed: %s", e)
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +63,9 @@ def submit_questionnaire(
     phone: str | None,
     email: str | None,
     telegram_id: str | None,
-    vote_for: bool,
-    vote_format: str,
-    registered_ed: bool,
+    barrier_vote: str | None,
+    vote_format: str | None,
+    registered_ed: str | None,
     consent_version: str | None,
     client_ip: str | None,
     captcha_verified: bool = True,
@@ -59,28 +75,28 @@ def submit_questionnaire(
     Возвращает dict: success, message или error с detail/errors/code.
     """
     if not phone and not email and not telegram_id:
-        return {"success": False, "detail": "At least one of phone, email, telegram_id required", "errors": [{"field": "contact", "message": "At least one contact field required"}]}
+        return {"success": False, "detail": "Укажите хотя бы один контакт: телефон, email или Telegram", "errors": [{"field": "contact", "message": "Укажите хотя бы один контакт: телефон, email или Telegram"}]}
 
     ok, err = validate_phone(phone)
     if not ok:
-        return {"success": False, "detail": "Validation failed", "errors": [{"field": "phone", "message": err}]}
+        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "phone", "message": err}]}
     ok, err = validate_email(email)
     if not ok:
-        return {"success": False, "detail": "Validation failed", "errors": [{"field": "email", "message": err}]}
+        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "email", "message": err}]}
     ok, err = validate_telegram_id(telegram_id)
     if not ok:
-        return {"success": False, "detail": "Validation failed", "errors": [{"field": "telegram_id", "message": err}]}
+        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "telegram_id", "message": err}]}
 
     if not captcha_verified:
-        return {"success": False, "detail": "Captcha verification required"}
+        return {"success": False, "detail": "Необходимо пройти проверку капчи"}
 
     with get_db() as db:
         cadastral = _resolve_premise_cadastral(premise_id, db)
         if not cadastral:
-            return {"success": False, "detail": "Premise not found", "code": "PREMISE_NOT_FOUND"}
+            return {"success": False, "detail": "Помещение не найдено", "code": "PREMISE_NOT_FOUND"}
 
         if _count_pending_on_premise(db, cadastral) >= PENDING_LIMIT_PER_PREMISE:
-            return {"success": False, "detail": "Premise limit exceeded: max 10 unvalidated contacts per premise", "code": "PREMISE_LIMIT_EXCEEDED"}
+            return {"success": False, "detail": "Превышен лимит: не более 10 неподтверждённых контактов на помещение", "code": "PREMISE_LIMIT_EXCEEDED"}
 
         phone_idx = blind_index_phone(phone) if phone else None
         email_idx = blind_index_email(email) if email else None
@@ -90,7 +106,7 @@ def submit_questionnaire(
         row = {"phone": phone, "email": email, "telegram_id": telegram_id}
         collision_msg = _collision(existing, row, phone_idx, email_idx, telegram_id_idx)
         if collision_msg:
-            return {"success": False, "detail": "Contact data conflict: existing record has different values. Please contact administrators to resolve.", "code": "CONTACT_CONFLICT"}
+            return {"success": False, "detail": "Конфликт данных: запись с такими контактами уже существует. Обратитесь к администратору.", "code": "CONTACT_CONFLICT"}
 
         phone_enc = encrypt(phone)
         email_enc = encrypt(email)
@@ -100,13 +116,13 @@ def submit_questionnaire(
             r = db.execute(text("SELECT 1 FROM oss_voting WHERE contact_id = :cid"), {"cid": cid}).fetchone()
             if r:
                 db.execute(
-                    text("UPDATE oss_voting SET position_for = :pf, vote_format = :vf, voted_in_ed = :ve WHERE contact_id = :cid"),
-                    {"pf": str(vote_for).lower(), "vf": vote_format, "ve": registered_ed, "cid": cid},
+                    text("UPDATE oss_voting SET barrier_vote = :bv, vote_format = :vf WHERE contact_id = :cid"),
+                    {"bv": barrier_vote, "vf": vote_format, "cid": cid},
                 )
             else:
                 db.execute(
-                    text("INSERT INTO oss_voting (contact_id, position_for, vote_format, voted_in_ed, voted) VALUES (:cid, :pf, :vf, :ve, false)"),
-                    {"cid": cid, "pf": str(vote_for).lower(), "vf": vote_format, "ve": registered_ed},
+                    text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, :bv, :vf, false)"),
+                    {"cid": cid, "bv": barrier_vote, "vf": vote_format},
                 )
 
         if existing:
@@ -142,7 +158,7 @@ def submit_questionnaire(
                 ),
                 {
                     "pid": cadastral, "io": is_owner,
-                    "phone": phone_enc, "email": email_enc, "telegram_id": telegram_id_enc,
+                    "phone": phone_enc, "email": email_enc, "tg": telegram_id_enc,
                     "pi": phone_idx, "ei": email_idx, "ti": telegram_id_idx,
                     "re": registered_ed, "cv": consent_version, "ip": client_ip,
                 },
@@ -152,9 +168,11 @@ def submit_questionnaire(
             contact_id = contact_id_row[0] if contact_id_row else None
             if contact_id:
                 db.execute(
-                    text("INSERT INTO oss_voting (contact_id, position_for, vote_format, voted_in_ed, voted) VALUES (:cid, :pf, :vf, :ve, false)"),
-                    {"cid": contact_id, "pf": str(vote_for).lower(), "vf": vote_format, "ve": registered_ed},
+                    text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, :bv, :vf, false)"),
+                    {"cid": contact_id, "bv": barrier_vote, "vf": vote_format},
                 )
+            # BE-03 / SR-BE03-001: логируем INSERT контакта (публичная форма)
+            _audit_log(db, "contact", str(contact_id), "insert", None, None, None, client_ip)
             db.commit()
             logger.info("Submit: new contact premise_id=%s (no PII in log)", cadastral)
             return {"success": True, "message": "Данные приняты"}

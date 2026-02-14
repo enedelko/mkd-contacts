@@ -10,6 +10,8 @@ services:
     image: postgres:15-alpine
     container_name: mkd-db
     environment:
+      TZ: Europe/Moscow
+      PGTZ: Europe/Moscow  # Специальная переменная для PostgreSQL
       POSTGRES_USER: ${POSTGRES_USER:-mkd}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mkd_secret}
       POSTGRES_DB: ${POSTGRES_DB:-mkd_contacts}
@@ -29,6 +31,7 @@ services:
     container_name: mkd-backend
     env_file: .env
     environment:
+      TZ: Europe/Moscow
       DATABASE_URL: postgresql://${POSTGRES_USER:-mkd}:${POSTGRES_PASSWORD:-mkd_secret}@db:5432/${POSTGRES_DB:-mkd_contacts}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       JWT_SECRET: ${JWT_SECRET:-}
@@ -52,6 +55,8 @@ services:
       args:
         VITE_TELEGRAM_BOT_USERNAME: ${VITE_TELEGRAM_BOT_USERNAME:-}
     container_name: mkd-frontend
+    environment:
+      TZ: Europe/Moscow
     ports:
       - "127.0.0.1:8080:80"
     depends_on:

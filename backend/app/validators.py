@@ -22,11 +22,11 @@ def validate_phone(value: Optional[str]) -> tuple[bool, Optional[str]]:
         return True, None
     digits = _phone_digits_only(value.strip())
     if len(digits) < 10:
-        return False, "Invalid phone format"
+        return False, "Неверный формат телефона"
     if len(digits) > 11:
-        return False, "Invalid phone format"
+        return False, "Неверный формат телефона"
     if not digits.startswith("7"):
-        return False, "Invalid phone format"
+        return False, "Неверный формат телефона"
     return True, None
 
 
@@ -41,9 +41,9 @@ def validate_email(value: Optional[str]) -> tuple[bool, Optional[str]]:
         return True, None
     s = value.strip().lower()
     if len(s) > 254:
-        return False, "Invalid email format"
+        return False, "Неверный формат email"
     if not EMAIL_RE.match(s):
-        return False, "Invalid email format"
+        return False, "Неверный формат email"
     return True, None
 
 
@@ -54,8 +54,8 @@ def validate_telegram_id(value: Optional[str]) -> tuple[bool, Optional[str]]:
     s = value.strip()
     if s.startswith("@"):
         if len(s) < 2 or len(s) > 32:
-            return False, "Invalid telegram_id format"
+            return False, "Неверный формат Telegram ID"
         return True, None
     if not s.isdigit() or len(s) > 20:
-        return False, "Invalid telegram_id format"
+        return False, "Неверный формат Telegram ID"
     return True, None
