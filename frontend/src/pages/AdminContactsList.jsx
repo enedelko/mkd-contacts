@@ -6,8 +6,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { clearAuth } from '../App'
 import TelegramIcon from '../components/TelegramIcon'
+import EntrancePicker from '../components/EntrancePicker'
 import { checkConsentRedirect } from '../utils/adminApi'
-import { entranceButtonLabel, entranceBarLabel } from '../utils/entranceLabel'
 
 const STATUS_LABELS = { pending: 'Ожидает', validated: 'Валидирован', inactive: 'Неактуальный' }
 const STATUS_OPTIONS = ['pending', 'validated', 'inactive']
@@ -21,9 +21,9 @@ export default function AdminContactsList() {
   const location = useLocation()
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mkd_access_token') : null
 
-  const [entrances, setEntrances] = useState([])
-  const [entrancesLoading, setEntrancesLoading] = useState(true)
-  const [selectedEntrance, setSelectedEntrance] = useState(null)
+  const [selectedEntrance, setSelectedEntrance] = useState(
+    location.state?.entrance ?? null
+  )
 
   const [contacts, setContacts] = useState([])
   const [total, setTotal] = useState(0)
@@ -42,27 +42,6 @@ export default function AdminContactsList() {
   useEffect(() => {
     if (!token) navigate('/login', { replace: true })
   }, [token, navigate])
-
-  useEffect(() => {
-    if (!token) return
-    setEntrancesLoading(true)
-    fetch('/api/premises/entrances', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => {
-        if (r.status === 401 || r.status === 403) { clearAuth(); navigate('/login', { replace: true }); return null }
-        return r.ok ? r.json() : null
-      })
-      .then((data) => {
-        if (data && Array.isArray(data.entrances)) setEntrances(data.entrances)
-      })
-      .finally(() => setEntrancesLoading(false))
-  }, [token, navigate])
-
-  useEffect(() => {
-    const entranceFromState = location.state?.entrance
-    if (entranceFromState != null && entranceFromState !== '') {
-      setSelectedEntrance(entranceFromState)
-    }
-  }, [location.state?.entrance])
 
   const fetchContacts = useCallback(async () => {
     if (!token || !selectedEntrance) return
@@ -235,25 +214,13 @@ export default function AdminContactsList() {
     return (
       <div className="admin-contacts-list-page">
         <h1>Контакты</h1>
-        <p className="entrance-prompt">Выберите подъезд, чтобы увидеть список контактов.</p>
-        {entrancesLoading ? (
-          <p className="loading">Загрузка подъездов…</p>
-        ) : entrances.length === 0 ? (
-          <p className="empty-message">Нет данных о подъездах. Загрузите реестр.</p>
-        ) : (
-          <div className="entrance-buttons" role="group" aria-label="Выбор подъезда">
-            {entrances.map((ent) => (
-              <button
-                key={ent}
-                type="button"
-                className="entrance-btn"
-                onClick={() => setSelectedEntrance(ent)}
-              >
-                {entranceButtonLabel(ent)}
-              </button>
-            ))}
-          </div>
-        )}
+        <EntrancePicker
+          selected={null}
+          onSelect={(ent) => setSelectedEntrance(ent)}
+          onReset={() => setSelectedEntrance(null)}
+          prompt="Выберите подъезд, чтобы увидеть список контактов."
+          emptyMessage="Нет данных о подъездах. Загрузите реестр."
+        />
       </div>
     )
   }
@@ -262,13 +229,12 @@ export default function AdminContactsList() {
     <div className="admin-contacts-list-page">
       <h1>Контакты</h1>
 
-      <div className="entrance-bar">
-        <span className="entrance-current">{entranceBarLabel(selectedEntrance)}</span>
-        <button type="button" className="btn-link" onClick={() => setSelectedEntrance(null)}>
-          Выбрать другой подъезд
-        </button>
-        <Link to="/upload" className="btn-link" state={{ entrance: selectedEntrance }}>Сформировать шаблон</Link>
-      </div>
+      <EntrancePicker
+        selected={selectedEntrance}
+        onSelect={(ent) => setSelectedEntrance(ent)}
+        onReset={() => setSelectedEntrance(null)}
+        barExtra={<Link to="/upload" className="btn-link" state={{ entrance: selectedEntrance }}>Сформировать шаблон</Link>}
+      />
 
       <div className="filters-bar">
         <label>

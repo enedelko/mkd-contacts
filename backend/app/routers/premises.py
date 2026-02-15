@@ -91,6 +91,126 @@ def list_types(
     return {"types": [r[0] for r in rows]}
 
 
+@router.get("/chessboard")
+def chessboard(
+    entrance: str = Query(..., description="Подъезд"),
+) -> dict[str, Any]:
+    """
+    FE-06 / SR-FE06-014..015: данные для шахматки помещений выбранного подъезда.
+    Публичный (без авторизации). Возвращает этажи (от макс. к мин.) с помещениями,
+    флагами контактов и состоянием ОСС. ПДн не раскрываются.
+    """
+    with get_db() as db:
+        # Все помещения подъезда с агрегатами по контактам и голосованию
+        rows = db.execute(
+            text("""
+                SELECT
+                    p.cadastral_number,
+                    p.premises_type,
+                    p.premises_number,
+                    p.floor,
+                    p.area,
+                    -- кол-во активных контактов (pending + validated)
+                    COUNT(DISTINCT c.id) FILTER (WHERE c.status IN ('pending', 'validated'))  AS cnt_active,
+                    -- кол-во валидированных (на будущее)
+                    COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'validated')                AS cnt_validated,
+                    -- кол-во контактов с barrier_vote = 'for'
+                    COUNT(DISTINCT c.id) FILTER (
+                        WHERE c.status IN ('pending', 'validated') AND o.barrier_vote = 'for'
+                    )                                                                          AS cnt_vote_for,
+                    -- есть ли хотя бы один собственник, зарегистрированный в Электронном доме
+                    BOOL_OR(c.registered_in_ed = 'yes')
+                        FILTER (WHERE c.status IN ('pending', 'validated'))                    AS has_registered_ed,
+                    -- есть ли telegram_id или phone среди активных
+                    BOOL_OR(
+                        (c.telegram_id IS NOT NULL AND c.telegram_id != '')
+                        OR (c.phone IS NOT NULL AND c.phone != '')
+                    ) FILTER (WHERE c.status IN ('pending', 'validated'))                      AS has_tg_or_phone,
+                    -- есть ли email среди активных
+                    BOOL_OR(
+                        c.email IS NOT NULL AND c.email != ''
+                    ) FILTER (WHERE c.status IN ('pending', 'validated'))                      AS has_email
+                FROM premises p
+                LEFT JOIN contacts c ON c.premise_id = p.cadastral_number
+                LEFT JOIN oss_voting o ON o.contact_id = c.id
+                WHERE p.entrance = :entrance
+                  AND p.floor IS NOT NULL AND TRIM(p.floor) != ''
+                GROUP BY p.cadastral_number, p.premises_type, p.premises_number, p.floor, p.area
+            """),
+            {"entrance": entrance},
+        ).fetchall()
+
+        # Площадь «ЗА» для подъезда (формула CORE-04)
+        total_area_row = db.execute(
+            text("SELECT COALESCE(SUM(COALESCE(area, 0)), 0) FROM premises WHERE entrance = :entrance"),
+            {"entrance": entrance},
+        ).fetchone()
+        total_area = float(total_area_row[0] or 0)
+
+        area_for_row = db.execute(
+            text("""
+                SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
+                WHERE p.entrance = :entrance
+                AND EXISTS (
+                    SELECT 1 FROM contacts c
+                    JOIN oss_voting o ON o.contact_id = c.id
+                    WHERE c.premise_id = p.cadastral_number AND o.barrier_vote = 'for'
+                )
+            """),
+            {"entrance": entrance},
+        ).fetchone()
+        area_voted_for = float(area_for_row[0] or 0)
+
+    # Группируем по этажам
+    floors_map: dict[str, list] = {}
+    for r in rows:
+        cn, pt, pn, fl, area, cnt_active, cnt_validated, cnt_vote_for, has_reg_ed, has_tg, has_email = r
+        # contact_state — раскраска по позиции ОСС:
+        #   full        — все активные контакты голосуют «ЗА»
+        #   vote_for    — хотя бы один контакт голосует «ЗА» (но не все)
+        #   registered  — хотя бы один собственник зарегистрирован в Электронном доме
+        #   none        — нет информации
+        if cnt_active > 0 and cnt_vote_for > 0 and cnt_vote_for >= cnt_active:
+            state = "full"
+        elif cnt_vote_for and cnt_vote_for > 0:
+            state = "vote_for"
+        elif bool(has_reg_ed):
+            state = "registered"
+        else:
+            state = "none"
+
+        has_tg_or_phone = bool(has_tg)
+        has_email_only = bool(has_email) and not has_tg_or_phone
+
+        item = {
+            "premise_id": cn,
+            "premises_type": pt or "",
+            "premises_number": pn or "",
+            "contact_state": state,
+            "has_telegram_or_phone": has_tg_or_phone,
+            "has_email_only": has_email_only,
+        }
+        floors_map.setdefault(fl, []).append(item)
+
+    # Сортировка: этажи от макс. к мин., помещения по типу/номеру
+    sorted_floors = sorted(floors_map.keys(), key=_floor_sort_key, reverse=True)
+    floors_out = []
+    for fl in sorted_floors:
+        premises = floors_map[fl]
+        premises.sort(key=lambda p: (p["premises_type"], _premise_sort_key(p["premises_number"])))
+        floors_out.append({"floor": fl, "premises": premises})
+
+    ratio = (area_voted_for / total_area) if total_area > 0 else 0.0
+
+    return {
+        "entrance": entrance,
+        "entrance_area_voted_for": round(area_voted_for, 2),
+        "entrance_total_area": round(total_area, 2),
+        "entrance_ratio": round(ratio, 4),
+        "floors": floors_out,
+    }
+
+
 @router.get("/numbers")
 def list_numbers(
     floor: str = Query(...),

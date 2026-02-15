@@ -12,6 +12,8 @@ import AuditLog from './pages/AuditLog'
 import ChangePassword from './pages/ChangePassword'
 import SuperadminAdmins from './pages/SuperadminAdmins'
 import AdminConsent from './pages/AdminConsent'
+import EntrancePicker from './components/EntrancePicker'
+import TelegramIcon from './components/TelegramIcon'
 
 /** Проверить, не протух ли JWT (по полю exp в payload). */
 function isTokenExpired(token) {
@@ -51,15 +53,35 @@ export function getRoleFromToken(t) {
   }
 }
 
+/** FE-06: Максимум ячеек в одной визуальной строке шахматки. */
+const CHESSBOARD_ROW_LIMIT = 9
+
+/** FE-06: цвета фона ячейки по позиции ОСС. */
+const STATE_BG = {
+  none: '#fff',
+  registered: '#fff9c4',
+  vote_for: '#c8e6c9',
+  full: '#66bb6a',
+}
+
 function Home() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const token = getToken()
+
+  // --- Кворум ---
   const [quorum, setQuorum] = useState(null)
   const [quorumLoading, setQuorumLoading] = useState(true)
   const [quorumError, setQuorumError] = useState(false)
 
+  // --- Шахматка ---
+  const [entrance, setEntrance] = useState(null)
+  const [board, setBoard] = useState(null)
+  const [boardLoading, setBoardLoading] = useState(false)
+  const [boardError, setBoardError] = useState(false)
+
+  // Редирект из popup Telegram
   useEffect(() => {
-    // Редирект из popup: Telegram может вернуть на origin с параметрами в hash
     if (!window.opener) return
     const fromQuery = searchParams.get('hash') && searchParams.get('id')
     if (fromQuery) {
@@ -78,25 +100,48 @@ function Home() {
     }
   }, [searchParams, navigate])
 
+  // Загрузка кворума
   useEffect(() => {
     setQuorumLoading(true)
     setQuorumError(false)
     fetch('/api/buildings/default/quorum')
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('fetch failed'))))
-      .then((data) => {
-        setQuorum(data)
-        setQuorumError(false)
-      })
-      .catch(() => {
-        setQuorum(null)
-        setQuorumError(true)
-      })
+      .then((data) => { setQuorum(data); setQuorumError(false) })
+      .catch(() => { setQuorum(null); setQuorumError(true) })
       .finally(() => setQuorumLoading(false))
   }, [])
 
+  // Загрузка шахматки при выборе подъезда
+  useEffect(() => {
+    if (!entrance) { setBoard(null); return }
+    setBoardLoading(true)
+    setBoardError(false)
+    fetch(`/api/premises/chessboard?entrance=${encodeURIComponent(entrance)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('fetch'))))
+      .then((data) => setBoard(data))
+      .catch(() => { setBoard(null); setBoardError(true) })
+      .finally(() => setBoardLoading(false))
+  }, [entrance])
+
+  // Клик по ячейке помещения
+  const handleCellClick = (premise, floor, premisesType) => {
+    const stateData = {
+      premise: { premise_id: premise.premise_id, number: premise.premises_number },
+      entrance,
+      floor,
+      type: premisesType,
+      hasEntrances: true,
+    }
+    if (token) {
+      navigate('/admin/contacts', { state: stateData })
+    } else {
+      navigate('/form', { state: stateData })
+    }
+  }
+
   return (
     <>
-      <p>Выберите помещение, чтобы оставить контакты и выразить свою позицию по ОСС.</p>
+      {/* SR-FE06-001: Блок кворума вверху */}
       <section className="home-quorum" aria-label="Прогноз кворума">
         {quorumLoading && <p className="quorum-loading">Загрузка данных кворума…</p>}
         {quorumError && !quorumLoading && (
@@ -127,6 +172,78 @@ function Home() {
           </div>
         )}
       </section>
+
+      {/* SR-FE06-002: Выбор подъезда */}
+      <p>Выберите помещение, чтобы оставить контакты и выразить свою позицию по ОСС.</p>
+      <EntrancePicker
+        selected={entrance}
+        onSelect={(ent) => setEntrance(ent)}
+        onReset={() => setEntrance(null)}
+        prompt="Выберите подъезд для просмотра помещений."
+      />
+
+      {/* SR-FE06-004: % площади ЗА над шахматкой */}
+      {board && !boardLoading && (
+        <div className="chessboard-entrance-stats">
+          Площадь «ЗА» по подъезду: <strong>{board.entrance_area_voted_for}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
+          {board.entrance_total_area > 0 && (
+            <> ({(board.entrance_ratio * 100).toFixed(1)}%)</>
+          )}
+        </div>
+      )}
+
+      {/* Шахматка */}
+      {boardLoading && <p className="chessboard-loading">Загрузка помещений…</p>}
+      {boardError && !boardLoading && <p className="chessboard-error">Не удалось загрузить данные. Попробуйте ещё раз.</p>}
+
+      {board && !boardLoading && (
+        <div className="chessboard" aria-label="Шахматка помещений">
+          {board.floors.map((fl) => {
+            const chunks = []
+            for (let i = 0; i < fl.premises.length; i += CHESSBOARD_ROW_LIMIT) {
+              chunks.push(fl.premises.slice(i, i + CHESSBOARD_ROW_LIMIT))
+            }
+            return (
+              <div key={fl.floor} className="chessboard-floor">
+                <div className="chessboard-floor-label">Этаж {fl.floor}</div>
+                {chunks.map((chunk, ci) => (
+                  <div key={ci} className="chessboard-row">
+                    {chunk.map((p) => (
+                      <button
+                        key={p.premise_id}
+                        type="button"
+                        className={`chessboard-cell state-${p.contact_state}`}
+                        style={{ background: STATE_BG[p.contact_state] || STATE_BG.none }}
+                        onClick={() => handleCellClick(p, fl.floor, p.premises_type)}
+                        title={`${p.premises_type} ${p.premises_number}`}
+                      >
+                        <span className="cell-type">{p.premises_type}</span>
+                        <span className="cell-number">{p.premises_number}</span>
+                        <span className="cell-icons">
+                          {p.has_telegram_or_phone && <TelegramIcon width={14} height={14} />}
+                          {p.has_email_only && <span className="cell-email" aria-label="Email">✉</span>}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+          {board.floors.length === 0 && <p className="chessboard-empty">В подъезде нет помещений.</p>}
+
+          {/* Легенда */}
+          <div className="chessboard-legend" aria-label="Обозначения">
+            <span className="legend-title">Обозначения:</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.none }} />Нет информации</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.registered }} />Зарегистрирован в Эл. доме</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.vote_for }} />Есть голос «ЗА»</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.full }} />Все голосуют «ЗА»</span>
+            <span className="legend-item"><TelegramIcon width={14} height={14} /> Есть Telegram / телефон</span>
+            <span className="legend-item"><span className="cell-email">✉</span> Только email</span>
+          </div>
+        </div>
+      )}
     </>
   )
 }

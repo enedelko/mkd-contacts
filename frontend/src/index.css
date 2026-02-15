@@ -15,13 +15,19 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .upload-page label { display: block; margin-bottom: 0.25rem; }
 .upload-page input[type="file"] { margin: 0.5rem 0; }
 .upload-page .help { display: block; font-size: 0.9rem; color: #666; }
-.upload-page .entrance-prompt { margin: 0.5rem 0; }
-.upload-page .entrance-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
-.upload-page .entrance-btn { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; border: 1px solid #007bff; border-radius: 6px; background: #fff; color: #007bff; }
-.upload-page .entrance-btn:hover { background: #e7f1ff; }
-.upload-page .entrance-bar { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }
-.upload-page .entrance-bar .entrance-current { font-weight: 600; }
-.upload-page .entrance-bar .btn-link { background: none; border: none; color: #007bff; cursor: pointer; text-decoration: underline; font-size: inherit; padding: 0; }
+/* UI-01: общие стили EntrancePicker */
+.entrance-picker { margin: 1rem 0; }
+.entrance-prompt { margin: 0.5rem 0; color: #555; }
+.entrance-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.entrance-btn { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; border: 1px solid #007bff; border-radius: 6px; background: #fff; color: #007bff; }
+.entrance-btn:hover { background: #e7f1ff; }
+.entrance-bar { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }
+.entrance-current { font-weight: 600; }
+.entrance-loading { color: #666; }
+.entrance-empty { color: #666; }
+.entrance-error { color: #c62828; }
+.btn-link { background: none; border: none; color: #007bff; cursor: pointer; text-decoration: underline; font-size: inherit; padding: 0; }
+.btn-link:hover { color: #0056b3; }
 .structure-error { margin: 1rem 0; padding: 1rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; }
 .columns-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem; }
 .columns-compare ul { margin: 0; padding-left: 1.25rem; }
@@ -84,14 +90,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .admin-contacts-list-page .total-info { color: #555; font-size: 0.9rem; }
 .admin-contacts-list-page .list-error { color: #c62828; }
 .admin-contacts-list-page .empty-message { color: #666; }
-.admin-contacts-list-page .entrance-prompt { margin: 1rem 0; color: #555; }
-.admin-contacts-list-page .entrance-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
-.admin-contacts-list-page .entrance-btn { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; border: 1px solid #007bff; border-radius: 6px; background: #fff; color: #007bff; }
-.admin-contacts-list-page .entrance-btn:hover { background: #e7f1ff; }
-.admin-contacts-list-page .entrance-bar { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; }
-.admin-contacts-list-page .entrance-current { font-weight: 500; }
-.admin-contacts-list-page .btn-link { background: none; border: none; color: #007bff; cursor: pointer; text-decoration: underline; font-size: 0.95rem; padding: 0; }
-.admin-contacts-list-page .btn-link:hover { color: #0056b3; }
+/* entrance-* стили для admin-contacts-list-page — теперь из общих (UI-01) */
 .admin-contacts-list-page .contacts-table tr.clickable-row { cursor: pointer; }
 .admin-contacts-list-page .contacts-table tr.clickable-row:hover { background: #e3f2fd !important; }
 .contacts-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
@@ -176,3 +175,23 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .home-quorum .quorum-progress { height: 100%; background: #1976d2; border-radius: 4px; transition: width 0.2s; }
 .home-quorum .quorum-result { margin: 0.5rem 0 0; font-weight: 600; font-size: 0.95rem; }
 .home-quorum .quorum-result.quorum-reached { color: #2e7d32; }
+/* FE-06: шахматка помещений */
+.chessboard-entrance-stats { margin: 0.75rem 0; font-size: 0.95rem; color: #333; }
+.chessboard-loading { color: #666; }
+.chessboard-error { color: #c62828; }
+.chessboard-empty { color: #666; }
+.chessboard { margin: 1rem 0; }
+.chessboard-floor { margin-bottom: 0.5rem; }
+.chessboard-floor-label { font-weight: 600; font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
+.chessboard-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px; }
+.chessboard-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 72px; min-height: 56px; border: 1px solid #bdbdbd; border-radius: 4px; cursor: pointer; padding: 2px 4px; text-align: center; font-family: inherit; transition: box-shadow 0.15s; }
+.chessboard-cell:hover { box-shadow: 0 0 0 2px #1976d2; }
+.chessboard-cell:focus-visible { outline: 2px solid #1976d2; outline-offset: 1px; }
+.cell-type { font-size: 0.6rem; color: #666; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cell-number { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
+.cell-icons { display: flex; gap: 2px; align-items: center; min-height: 16px; }
+.cell-email { font-size: 0.85rem; line-height: 1; }
+.chessboard-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 1rem; padding: 0.5rem 0.75rem; background: #f5f5f5; border-radius: 6px; font-size: 0.8rem; color: #444; }
+.legend-title { font-weight: 600; }
+.legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.legend-swatch { display: inline-block; width: 14px; height: 14px; border: 1px solid #bdbdbd; border-radius: 2px; }

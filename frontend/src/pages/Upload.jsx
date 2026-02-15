@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { clearAuth, getRoleFromToken } from '../App'
-import { entranceButtonLabel, entranceBarLabel } from '../utils/entranceLabel'
+import EntrancePicker from '../components/EntrancePicker'
 import { checkConsentRedirect } from '../utils/adminApi'
 
 const EXPECTED_COLUMNS_REGISTER = [
@@ -26,7 +26,6 @@ export default function Upload() {
   const [resultContacts, setResultContacts] = useState(null)
   const [structureErrorRegister, setStructureErrorRegister] = useState(null)
   const [structureErrorContacts, setStructureErrorContacts] = useState(null)
-  const [entrances, setEntrances] = useState([])
   const [entrance, setEntrance] = useState('')
   const [loadingTemplate, setLoadingTemplate] = useState(false)
   const [templateError, setTemplateError] = useState(null)
@@ -36,21 +35,13 @@ export default function Upload() {
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mkd_access_token') : null
   const isSuperAdmin = getRoleFromToken(token) === 'super_administrator'
 
-  useEffect(() => {
-    if (!token) return
-    fetch('/api/premises/entrances')
-      .then((r) => r.json())
-      .then((d) => setEntrances(d.entrances || []))
-      .catch(() => setEntrances([]))
-  }, [token])
-
   // Восстановление подъезда из state при переходе с экрана «Контакты» (п. 8 ADM-08)
   useEffect(() => {
     const fromState = location.state?.entrance
-    if (fromState != null && fromState !== '' && entrances.includes(fromState)) {
+    if (fromState != null && fromState !== '') {
       setEntrance(fromState)
     }
-  }, [location.state?.entrance, entrances])
+  }, [location.state?.entrance])
 
   const handleSubmitRegister = async (e) => {
     e.preventDefault()
@@ -249,32 +240,21 @@ export default function Upload() {
         <p>Скачайте XLSX со всеми помещениями выбранного подъезда и известными контактами. Заполните или отредактируйте и загрузите через «Загрузка контактов».</p>
         {!token ? (
           <p className="help">Требуется авторизация.</p>
-        ) : entrances.length === 0 ? (
-          <p className="help">Нет подъездов в реестре. Загрузите реестр.</p>
         ) : !entrance ? (
-          <div className="template-entrance-select" role="group" aria-label="Выбор подъезда для шаблона">
-            <p className="entrance-prompt">Выберите подъезд для формирования шаблона.</p>
-            <div className="entrance-buttons">
-              {entrances.map((ent) => (
-                <button
-                  key={ent}
-                  type="button"
-                  className="entrance-btn"
-                  onClick={() => setEntrance(ent)}
-                >
-                  {entranceButtonLabel(ent)}
-                </button>
-              ))}
-            </div>
-          </div>
+          <EntrancePicker
+            selected={null}
+            onSelect={(ent) => setEntrance(ent)}
+            onReset={() => setEntrance('')}
+            prompt="Выберите подъезд для формирования шаблона."
+            emptyMessage="Нет подъездов в реестре. Загрузите реестр."
+          />
         ) : (
           <form onSubmit={handleDownloadTemplate}>
-            <div className="entrance-bar">
-              <span className="entrance-current">{entranceBarLabel(entrance)}</span>
-              <button type="button" className="btn-link" onClick={() => setEntrance('')}>
-                Выбрать другой подъезд
-              </button>
-            </div>
+            <EntrancePicker
+              selected={entrance}
+              onSelect={(ent) => setEntrance(ent)}
+              onReset={() => setEntrance('')}
+            />
             <button type="submit" disabled={loadingTemplate}>{loadingTemplate ? 'Формирование…' : 'Сформировать шаблон'}</button>
           </form>
         )}

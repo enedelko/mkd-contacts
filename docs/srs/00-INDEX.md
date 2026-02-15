@@ -72,6 +72,7 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | 5 | [Валидация](06-validation.md) | VAL-01, CORE-02 | Смена статуса контакта, валидация и лимиты, дедупликация |
 | 6 | [Кворум (базовый расчёт)](08-core04-quorum.md) | CORE-04 | API расчёта долей, отображение на главной |
 | 7 | [Остальные фичи](98-backlog.md) | FE-01, FE-02, FE-05, BOT-01…04, ADM-03, OPS-01…03, CORE-06 | Поиск, карта, бот, операции |
+| 13 | [EntrancePicker и шахматка](13-home-premises-chessboard.md) | UI-01, FE-06 | Компонент выбора подъезда; таблица этажей на главной, клик → форма/админка |
 | — | [Итоговая сводка (Action Items)](99-summary.md) | — | Вопросы к бизнесу, допущения, риски |
 
 ---
@@ -91,6 +92,7 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | ADM-02, ADM-05 | [11-adm02-adm05-moderation-superadmin-audit.md](11-adm02-adm05-moderation-superadmin-audit.md) |
 | ADM-09 | [12-admin-policy-consent.md](12-admin-policy-consent.md) |
 | FE-01, FE-02, FE-05, BOT-01…04, ADM-03, OPS-01…03, CORE-06 | [98-backlog.md](98-backlog.md) |
+| UI-01, FE-06 | [13-home-premises-chessboard.md](13-home-premises-chessboard.md) |
 | Итоговая сводка | [99-summary.md](99-summary.md) |
 
 ---
