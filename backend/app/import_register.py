@@ -27,7 +27,7 @@ REQUIRED_PREMISE_COLUMNS = ["cadastral_number"]
 OPTIONAL_PREMISE_COLUMNS = ["area", "entrance", "floor", "premises_type", "premises_number"]
 CONTACT_COLUMNS = ["phone", "email", "telegram_id", "how_to_address"]
 # ADM-06: опциональные колонки загрузки контактов
-CONTACTS_ONLY_OPTIONAL = ["is_owner", "barrier_vote", "vote_format"]
+CONTACTS_ONLY_OPTIONAL = ["is_owner", "barrier_vote", "vote_format", "registered_in_ed"]
 # Синонимы для маппинга заголовков файла
 COLUMN_ALIASES = {
     "cadastral_number": ["cadastral_number", "cadastral", "кадастровый_номер", "кадастровый номер"],
@@ -43,6 +43,7 @@ COLUMN_ALIASES = {
     "is_owner": ["is_owner", "собственник", "Собственник?", "проживающий"],
     "barrier_vote": ["barrier_vote", "позиция_по_шлагбаумам", "позиция по шлагбаумам"],
     "vote_format": ["vote_format", "формат_голосования", "формат голосования"],
+    "registered_in_ed": ["registered_in_ed", "зарегистрирован_в_эд", "зарегистрирован в эд", "электронный_дом", "электронный дом", "эл_дом"],
 }
 
 
@@ -117,6 +118,20 @@ def _normalize_vote_format(val: Any) -> str | None:
         return "paper"
     if s in ("undecided", "не определён", "не определен", "не определился", "пока не решили", "пока не определились", "думают"):
         return "undecided"
+    return None
+
+
+def _normalize_registered_ed(val: Any) -> str | None:
+    """Привести значение к yes | no. None если пусто или не распознано."""
+    if val is None or (isinstance(val, str) and not val.strip()):
+        return None
+    s = str(val).strip().lower()
+    if not s:
+        return None
+    if s in ("yes", "да", "true", "1"):
+        return "yes"
+    if s in ("no", "нет", "false", "0"):
+        return "no"
     return None
 
 
@@ -434,6 +449,7 @@ def run_import_contacts_only(rows: list[dict[str, Any]], client_ip: str | None =
                     is_owner_val = True
                 barrier_vote_val = _normalize_barrier_vote(row.get("barrier_vote"))
                 vote_format_val = _normalize_vote_format(row.get("vote_format"))
+                registered_ed_val = _normalize_registered_ed(row.get("registered_in_ed"))
 
                 phone_idx = blind_index_phone(phone) if phone else None
                 email_idx = blind_index_email(email) if email else None
@@ -461,6 +477,8 @@ def run_import_contacts_only(rows: list[dict[str, Any]], client_ip: str | None =
                     if how_enc and not existing.get("has_how"):
                         updates.append("how_to_address = :how_to_address"); params["how_to_address"] = how_enc
                     updates.append("is_owner = :io")
+                    if registered_ed_val is not None:
+                        updates.append("registered_in_ed = :re"); params["re"] = registered_ed_val
                     if updates:
                         set_parts = updates.copy()
                         if "email_idx" in params: set_parts.append("email_idx = :email_idx")
@@ -474,9 +492,9 @@ def run_import_contacts_only(rows: list[dict[str, Any]], client_ip: str | None =
                     db.execute(
                         text(
                             "INSERT INTO contacts (premise_id, is_owner, phone, email, telegram_id, how_to_address, "
-                            "phone_idx, email_idx, telegram_id_idx, status, ip) "
+                            "phone_idx, email_idx, telegram_id_idx, registered_in_ed, status, ip) "
                             "VALUES (:pid, :io, :phone, :email, :telegram_id, :how_to_address, "
-                            ":phone_idx, :email_idx, :telegram_id_idx, 'pending', :ip)"
+                            ":phone_idx, :email_idx, :telegram_id_idx, :re, 'pending', :ip)"
                         ),
                         {
                             "pid": premise_id,
@@ -488,6 +506,7 @@ def run_import_contacts_only(rows: list[dict[str, Any]], client_ip: str | None =
                             "phone_idx": phone_idx,
                             "email_idx": email_idx,
                             "telegram_id_idx": telegram_id_idx,
+                            "re": registered_ed_val,
                             "ip": client_ip,
                         },
                     )
@@ -527,18 +546,19 @@ def _upsert_oss_voting(db, contact_id: int, barrier_vote: str | None, vote_forma
 CONTACTS_TEMPLATE_HEADERS = [
     "cadastral_number", "premises_type", "premises_number",
     "phone", "email", "telegram_id", "how_to_address",
-    "is_owner", "barrier_vote", "vote_format",
+    "is_owner", "barrier_vote", "vote_format", "registered_in_ed",
 ]
 CONTACTS_TEMPLATE_HEADERS_RU = [
     "кадастровый номер", "тип помещения", "номер помещения",
     "телефон", "почта", "telegram_id", "Ссылка ТГ", "обращение",
-    "Собственник?", "позиция по шлагбаумам", "формат голосования",
+    "Собственник?", "позиция по шлагбаумам", "формат голосования", "Электронный дом",
 ]
 COL_TG_LINK = 6  # индекс колонки «Ссылка ТГ» (0-based); при импорте не используется (SR-ADM08-003)
 COL_PHONE = 3   # колонка телефон (D)
 COL_TELEGRAM_ID = 5  # колонка telegram_id (F)
 COL_BARRIER_VOTE = 9   # колонка позиция по шлагбаумам (J)
 COL_VOTE_FORMAT = 10   # колонка формат голосования (K)
+COL_REGISTERED_ED = 11  # колонка Электронный дом (L)
 
 # Транслитерация кириллицы в латиницу для имени файла (ГОСТ 7.79-2000, тип B)
 TRANSLIT_RU_EN = str.maketrans({
@@ -555,6 +575,7 @@ TRANSLIT_RU_EN = str.maketrans({
 # Русские подписи для выгрузки шаблона (как в списке контактов CORE-03)
 BARRIER_VOTE_DISPLAY = {"for": "ЗА", "against": "Против", "undecided": "Не определился"}
 VOTE_FORMAT_DISPLAY = {"electronic": "Электронно", "paper": "Бумага", "undecided": "Не определился"}
+REGISTERED_ED_DISPLAY = {"yes": "Да", "no": "Нет"}
 
 
 def _telegram_link(telegram_id: str | None, phone: str | None) -> str:
@@ -611,7 +632,7 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
         q = text(
             "SELECT p.cadastral_number, p.premises_type, p.premises_number, "
             "c.id, c.phone, c.email, c.telegram_id, c.how_to_address, c.is_owner, "
-            "o.barrier_vote, o.vote_format "
+            "o.barrier_vote, o.vote_format, c.registered_in_ed "
             "FROM premises p "
             "LEFT JOIN contacts c ON c.premise_id = p.cadastral_number "
             "LEFT JOIN oss_voting o ON o.contact_id = c.id "
@@ -624,9 +645,9 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
         for r in result:
             cn, pt, pn = r[0], r[1], r[2]
             cid, phone_enc, email_enc, tg_enc, how_enc = r[3], r[4], r[5], r[6], r[7]
-            is_owner, bv, vf = r[8], r[9], r[10]
+            is_owner, bv, vf, reg_ed = r[8], r[9], r[10], r[11]
             if cid is None:
-                rows.append([cn or "", pt or "", pn or "", "", "", "", "", "", True, "", ""])
+                rows.append([cn or "", pt or "", pn or "", "", "", "", "", "", True, "", "", ""])
             else:
                 phone_raw = decrypt(phone_enc) if phone_enc else ""
                 email = decrypt(email_enc) if email_enc else ""
@@ -635,12 +656,13 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
                 phone_display = _format_phone_display(phone_raw) or phone_raw or ""
                 bv_display = BARRIER_VOTE_DISPLAY.get(bv, bv) if bv else ""
                 vf_display = VOTE_FORMAT_DISPLAY.get(vf, vf) if vf else ""
+                reg_ed_display = REGISTERED_ED_DISPLAY.get(reg_ed, reg_ed) if reg_ed else ""
                 # Колонка «Ссылка ТГ» заполняется формулой ниже (пересчитывается при редактировании D/F)
                 rows.append([
                     cn or "", pt or "", pn or "",
                     phone_display, email or "", telegram_id or "", "", how_to_address or "",
                     is_owner if is_owner is not None else True,
-                    bv_display, vf_display,
+                    bv_display, vf_display, reg_ed_display,
                 ])
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -686,6 +708,15 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
     )
     dv_vf.add(f"K2:K{max_row}")
     ws.add_data_validation(dv_vf)
+    dv_re = DataValidation(
+        type="list",
+        formula1='"Да,Нет"',
+        allow_blank=True,
+        promptTitle="Электронный дом",
+        prompt="Зарегистрирован в Электронном доме: Да, Нет",
+    )
+    dv_re.add(f"L2:L{max_row}")
+    ws.add_data_validation(dv_re)
 
     ws.freeze_panes = "A2"
     buffer = io.BytesIO()

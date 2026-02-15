@@ -236,7 +236,7 @@ function Home() {
           <div className="chessboard-legend" aria-label="Обозначения">
             <span className="legend-title">Обозначения:</span>
             <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.none }} />Нет информации</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.registered }} />Зарегистрирован в Эл. доме</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.registered }} />Зарегистрированы в ЭД</span>
             <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.vote_for }} />Есть голос «ЗА»</span>
             <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.full }} />Все голосуют «ЗА»</span>
             <span className="legend-item"><TelegramIcon width={14} height={14} /> Есть Telegram / телефон</span>

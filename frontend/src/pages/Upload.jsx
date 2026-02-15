@@ -14,7 +14,7 @@ const EXPECTED_COLUMNS_REGISTER = [
 
 const EXPECTED_COLUMNS_CONTACTS = [
   'cadastral_number', 'phone', 'email', 'telegram_id', 'how_to_address',
-  'is_owner', 'barrier_vote', 'vote_format',
+  'is_owner', 'barrier_vote', 'vote_format', 'registered_in_ed',
 ]
 
 export default function Upload() {
