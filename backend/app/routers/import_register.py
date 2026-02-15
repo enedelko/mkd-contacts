@@ -6,7 +6,6 @@ ADM-08: GET /api/admin/import/contacts-template — шаблон XLSX по по�
 import json
 import logging
 from typing import Any
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
@@ -19,12 +18,23 @@ from app.import_register import (
     parse_file,
     run_import,
     run_import_contacts_only,
+    transliterate_entrance_for_filename,
 )
 from app.jwt_utils import require_admin, require_super_admin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+def _client_ip(request: Request) -> str | None:
+    """IP клиента: за nginx — X-Forwarded-For или X-Real-IP, иначе request.client.host."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or None
+    if request.headers.get("x-real-ip"):
+        return request.headers.get("x-real-ip").strip() or None
+    return request.client.host if request.client else None
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB (NFR Performance)
 
@@ -175,14 +185,17 @@ def contacts_template(
                 None,
                 json.dumps({"row_count": row_count, "format": "xlsx"}),
                 payload.get("sub"),
-                request.client.host if request.client else None,
+                _client_ip(request),
             )
             db.commit()
 
-    # Имя файла может содержать кириллицу (напр. «Паркинг») — используем RFC 5987 (filename*=UTF-8'')
-    filename_utf8 = f"contacts_entrance_{entrance}.xlsx" if row_count > 0 else "contacts_template.xlsx"
-    filename_ascii = "contacts_template.xlsx"  # fallback для старых клиентов (только Latin-1)
-    content_disp = f"attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{quote(filename_utf8, safe='')}"
+    # Имя файла: транслитерация кириллицы (подъезд Б → B), затем ASCII
+    if row_count > 0:
+        entrance_safe = transliterate_entrance_for_filename(entrance)
+        filename = f"contacts_entrance_{entrance_safe}.xlsx"
+    else:
+        filename = "contacts_template.xlsx"
+    content_disp = f'attachment; filename="{filename}"'
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

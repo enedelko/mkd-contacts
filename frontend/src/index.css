@@ -15,6 +15,13 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .upload-page label { display: block; margin-bottom: 0.25rem; }
 .upload-page input[type="file"] { margin: 0.5rem 0; }
 .upload-page .help { display: block; font-size: 0.9rem; color: #666; }
+.upload-page .entrance-prompt { margin: 0.5rem 0; }
+.upload-page .entrance-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.upload-page .entrance-btn { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; border: 1px solid #007bff; border-radius: 6px; background: #fff; color: #007bff; }
+.upload-page .entrance-btn:hover { background: #e7f1ff; }
+.upload-page .entrance-bar { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }
+.upload-page .entrance-bar .entrance-current { font-weight: 600; }
+.upload-page .entrance-bar .btn-link { background: none; border: none; color: #007bff; cursor: pointer; text-decoration: underline; font-size: inherit; padding: 0; }
 .structure-error { margin: 1rem 0; padding: 1rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; }
 .columns-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem; }
 .columns-compare ul { margin: 0; padding-left: 1.25rem; }

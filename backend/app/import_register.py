@@ -5,6 +5,7 @@ CORE-01: Импорт реестра помещений и контактов (C
 import csv
 import io
 import logging
+import re
 from typing import Any
 
 from sqlalchemy import text
@@ -97,7 +98,7 @@ def _normalize_barrier_vote(val: Any) -> str | None:
         return "for"
     if s in ("against", "против", "нет"):
         return "against"
-    if s in ("undecided", "не определён", "не определен", "воздержался", "воздержалась", "воздержались",
+    if s in ("undecided", "не определён", "не определен", "не определился", "воздержался", "воздержалась", "воздержались",
              "пока не решил", "пока не решила", "пока не решили", "пока не определились", "думают"):
         return "undecided"
     return None
@@ -114,7 +115,7 @@ def _normalize_vote_format(val: Any) -> str | None:
         return "electronic"
     if s in ("paper", "бумага", "бумажный", "на бумаге"):
         return "paper"
-    if s in ("undecided", "не определён", "не определен", "пока не решили", "пока не определились", "думают"):
+    if s in ("undecided", "не определён", "не определен", "не определился", "пока не решили", "пока не определились", "думают"):
         return "undecided"
     return None
 
@@ -522,18 +523,78 @@ def _upsert_oss_voting(db, contact_id: int, barrier_vote: str | None, vote_forma
         )
 
 
-# ADM-08: колонки шаблона контактов (совместимы с ADM-06). Порядок как в CONTACTS_TEMPLATE_HEADERS.
+# ADM-08: колонки шаблона контактов (совместимы с ADM-06). + колонка «ТГ» (ссылка, SR-ADM08-006).
 CONTACTS_TEMPLATE_HEADERS = [
     "cadastral_number", "premises_type", "premises_number",
     "phone", "email", "telegram_id", "how_to_address",
     "is_owner", "barrier_vote", "vote_format",
 ]
-# Заголовки на русском по таблице алиасов (SRS) — для вывода в XLSX
 CONTACTS_TEMPLATE_HEADERS_RU = [
     "кадастровый номер", "тип помещения", "номер помещения",
-    "телефон", "почта", "тг", "обращение",
+    "телефон", "почта", "telegram_id", "Ссылка ТГ", "обращение",
     "Собственник?", "позиция по шлагбаумам", "формат голосования",
 ]
+COL_TG_LINK = 6  # индекс колонки «Ссылка ТГ» (0-based); при импорте не используется (SR-ADM08-003)
+COL_PHONE = 3   # колонка телефон (D)
+COL_TELEGRAM_ID = 5  # колонка telegram_id (F)
+COL_BARRIER_VOTE = 9   # колонка позиция по шлагбаумам (J)
+COL_VOTE_FORMAT = 10   # колонка формат голосования (K)
+
+# Транслитерация кириллицы в латиницу для имени файла (ГОСТ 7.79-2000, тип B)
+TRANSLIT_RU_EN = str.maketrans({
+    "А": "A", "Б": "B", "В": "V", "Г": "G", "Д": "D", "Е": "E", "Ё": "E", "Ж": "Zh", "З": "Z",
+    "И": "I", "Й": "J", "К": "K", "Л": "L", "М": "M", "Н": "N", "О": "O", "П": "P", "Р": "R",
+    "С": "S", "Т": "T", "У": "U", "Ф": "F", "Х": "Kh", "Ц": "Ts", "Ч": "Ch", "Ш": "Sh", "Щ": "Shch",
+    "Ъ": "", "Ы": "Y", "Ь": "", "Э": "E", "Ю": "Yu", "Я": "Ya",
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh", "з": "z",
+    "и": "i", "й": "j", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r",
+    "с": "s", "т": "t", "у": "u", "ф": "f", "х": "kh", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+})
+
+# Русские подписи для выгрузки шаблона (как в списке контактов CORE-03)
+BARRIER_VOTE_DISPLAY = {"for": "ЗА", "against": "Против", "undecided": "Не определился"}
+VOTE_FORMAT_DISPLAY = {"electronic": "Электронно", "paper": "Бумага", "undecided": "Не определился"}
+
+
+def _telegram_link(telegram_id: str | None, phone: str | None) -> str:
+    """SR-ADM08-006: ссылка в Telegram по telegram_id или по телефону (логика как в списке контактов)."""
+    if telegram_id and str(telegram_id).strip():
+        tid = str(telegram_id).strip()
+        if tid.isdigit():
+            return f"tg://user?id={tid}"
+        return f"https://t.me/{tid.lstrip('@')}"
+    if phone and str(phone).strip():
+        digits = "".join(c for c in str(phone) if c.isdigit())
+        if len(digits) >= 10:
+            if digits.startswith("8") and len(digits) == 11:
+                digits = "7" + digits[1:]
+            if digits.startswith("7") and len(digits) == 11:
+                return f"https://t.me/+{digits}"
+            return f"https://t.me/+{digits}"
+    return ""
+
+
+def transliterate_entrance_for_filename(entrance: str) -> str:
+    """Транслитерация подъезда для имени файла: кириллица → латиница (ГОСТ 7.79-2000), остальное — буквы/цифры/дефис."""
+    if not entrance:
+        return "entrance"
+    s = str(entrance).strip().translate(TRANSLIT_RU_EN)
+    s = re.sub(r"[^\w\-.]", "_", s)
+    return s.strip("_") or "entrance"
+
+
+def _format_phone_display(phone: str | None) -> str:
+    """Формат +7 (XXX) XXX-XX-XX для отображения в XLSX (опционально, п. 8)."""
+    if not phone or not str(phone).strip():
+        return ""
+    digits = "".join(c for c in str(phone) if c.isdigit())
+    if len(digits) == 11 and digits.startswith("7"):
+        return f"+7 ({digits[1:4]}) {digits[4:7]}-{digits[7:9]}-{digits[9:11]}"
+    if len(digits) == 11 and digits.startswith("8"):
+        digits = "7" + digits[1:]
+        return f"+7 ({digits[1:4]}) {digits[4:7]}-{digits[7:9]}-{digits[9:11]}"
+    return phone
 
 
 def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
@@ -546,6 +607,7 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
 
     rows: list[list[Any]] = []
     with get_db() as db:
+        # SR-ADM08-005: сортировка как в CORE-03 — по типу помещения, затем по номеру (естественная)
         q = text(
             "SELECT p.cadastral_number, p.premises_type, p.premises_number, "
             "c.id, c.phone, c.email, c.telegram_id, c.how_to_address, c.is_owner, "
@@ -554,7 +616,9 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
             "LEFT JOIN contacts c ON c.premise_id = p.cadastral_number "
             "LEFT JOIN oss_voting o ON o.contact_id = c.id "
             "WHERE p.entrance = :e "
-            "ORDER BY p.floor NULLS LAST, p.premises_number NULLS LAST, c.id NULLS LAST"
+            "ORDER BY p.premises_type NULLS LAST, "
+            "(NULLIF(TRIM(REGEXP_REPLACE(COALESCE(p.premises_number, ''), '[^0-9].*', '')), '')::int) NULLS LAST, "
+            "p.premises_number NULLS LAST, c.id NULLS LAST"
         )
         result = db.execute(q, {"e": entrance}).fetchall()
         for r in result:
@@ -562,17 +626,21 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
             cid, phone_enc, email_enc, tg_enc, how_enc = r[3], r[4], r[5], r[6], r[7]
             is_owner, bv, vf = r[8], r[9], r[10]
             if cid is None:
-                rows.append([cn or "", pt or "", pn or "", "", "", "", "", True, "", ""])
+                rows.append([cn or "", pt or "", pn or "", "", "", "", "", "", True, "", ""])
             else:
-                phone = decrypt(phone_enc) if phone_enc else ""
+                phone_raw = decrypt(phone_enc) if phone_enc else ""
                 email = decrypt(email_enc) if email_enc else ""
                 telegram_id = decrypt(tg_enc) if tg_enc else ""
                 how_to_address = decrypt(how_enc) if how_enc else ""
+                phone_display = _format_phone_display(phone_raw) or phone_raw or ""
+                bv_display = BARRIER_VOTE_DISPLAY.get(bv, bv) if bv else ""
+                vf_display = VOTE_FORMAT_DISPLAY.get(vf, vf) if vf else ""
+                # Колонка «Ссылка ТГ» заполняется формулой ниже (пересчитывается при редактировании D/F)
                 rows.append([
                     cn or "", pt or "", pn or "",
-                    phone or "", email or "", telegram_id or "", how_to_address or "",
+                    phone_display, email or "", telegram_id or "", "", how_to_address or "",
                     is_owner if is_owner is not None else True,
-                    bv or "", vf or "",
+                    bv_display, vf_display,
                 ])
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -582,6 +650,43 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
     ws.append(CONTACTS_TEMPLATE_HEADERS_RU)
     for row in rows:
         ws.append(row)
+
+    # SR-ADM08-006: колонка «Ссылка ТГ» — формула от D (телефон) и F (telegram_id), пересчитывается при редактировании
+    g_col = COL_TG_LINK + 1
+    for row_idx in range(2, len(rows) + 2):
+        # F=telegram_id: если число — tg://user?id=; иначе https://t.me/username. D=телефон — https://t.me/+цифры
+        formula = (
+            f'=IF(F{row_idx}<>"",'
+            f'IF(ISERROR(VALUE(F{row_idx})),'
+            f'HYPERLINK("https://t.me/"&SUBSTITUTE(SUBSTITUTE(TRIM(F{row_idx}),"@","")," ",""),"\u2708"),'
+            f'HYPERLINK("tg://user?id="&F{row_idx},"\u2708")),'
+            f'IF(D{row_idx}<>"",'
+            f'HYPERLINK("https://t.me/+"&SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(D{row_idx}," ",""),"(",""),")",""),"-",""),"+",""),".",""),"\u2708"),""))'
+        )
+        ws.cell(row=row_idx, column=g_col).value = formula
+
+    # Data Validation: выпадающие списки для позиции по шлагбаумам и формата голосования (openpyxl поддерживает)
+    from openpyxl.worksheet.datavalidation import DataValidation
+    max_row = len(rows) + 1
+    dv_bv = DataValidation(
+        type="list",
+        formula1='"ЗА,Против,Не определился"',
+        allow_blank=True,
+        promptTitle="Позиция по шлагбаумам",
+        prompt="Выберите: ЗА, Против, Не определился",
+    )
+    dv_bv.add(f"J2:J{max_row}")
+    ws.add_data_validation(dv_bv)
+    dv_vf = DataValidation(
+        type="list",
+        formula1='"Электронно,Бумага,Не определился"',
+        allow_blank=True,
+        promptTitle="Формат голосования",
+        prompt="Выберите: Электронно, Бумага, Не определился",
+    )
+    dv_vf.add(f"K2:K{max_row}")
+    ws.add_data_validation(dv_vf)
+
     ws.freeze_panes = "A2"
     buffer = io.BytesIO()
     wb.save(buffer)
