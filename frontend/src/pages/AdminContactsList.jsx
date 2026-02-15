@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { clearAuth } from '../App'
 import TelegramIcon from '../components/TelegramIcon'
+import { entranceButtonLabel, entranceBarLabel } from '../utils/entranceLabel'
 
 const STATUS_LABELS = { pending: 'Ожидает', validated: 'Валидирован', inactive: 'Неактуальный' }
 const STATUS_OPTIONS = ['pending', 'validated', 'inactive']
@@ -241,7 +242,7 @@ export default function AdminContactsList() {
                 className="entrance-btn"
                 onClick={() => setSelectedEntrance(ent)}
               >
-                Подъезд {ent}
+                {entranceButtonLabel(ent)}
               </button>
             ))}
           </div>
@@ -255,10 +256,11 @@ export default function AdminContactsList() {
       <h1>Контакты</h1>
 
       <div className="entrance-bar">
-        <span className="entrance-current">Подъезд: {selectedEntrance}</span>
+        <span className="entrance-current">{entranceBarLabel(selectedEntrance)}</span>
         <button type="button" className="btn-link" onClick={() => setSelectedEntrance(null)}>
           Выбрать другой подъезд
         </button>
+        <Link to="/upload" className="btn-link" state={{ entrance: selectedEntrance }}>Сформировать шаблон</Link>
       </div>
 
       <div className="filters-bar">

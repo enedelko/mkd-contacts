@@ -8,6 +8,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { clearAuth } from '../App'
 import TelegramIcon from '../components/TelegramIcon'
 import { formatPhoneOnBlur } from '../utils/phoneFormat'
+import { entranceButtonLabel, entranceInlineLabel } from '../utils/entranceLabel'
 
 const API = '/api/premises'
 
@@ -95,7 +96,7 @@ export default function AdminContacts() {
         setRegisteredEd(data.registered_ed || '')
         setEditPremiseId(data.premise_id || '')
         const parts = []
-        if (data.entrance) parts.push(`подъезд ${data.entrance}`)
+        if (data.entrance) parts.push(entranceInlineLabel(data.entrance))
         if (data.floor) parts.push(`этаж ${data.floor}`)
         if (data.premises_type && data.premises_number) parts.push(`${data.premises_type} № ${data.premises_number}`)
         setEditPremiseLabel(parts.length ? parts.join(', ') : data.premise_id)
@@ -245,7 +246,7 @@ export default function AdminContacts() {
 
   const premiseLabel = selectedPremise
     ? [
-        hasEntrances ? `подъезд ${entrance}` : null,
+        hasEntrances ? entranceInlineLabel(entrance) : null,
         `этаж ${floor}`,
         `${type} № ${selectedPremise.number}`,
       ].filter(Boolean).join(', ')
@@ -278,7 +279,7 @@ export default function AdminContacts() {
                   <select value={entrance} onChange={(e) => setEntrance(e.target.value)} disabled={filterLoading}>
                     <option value="">— выберите —</option>
                     {entrances.map((e) => (
-                      <option key={e} value={e}>{e}</option>
+                      <option key={e} value={e}>{entranceButtonLabel(e)}</option>
                     ))}
                   </select>
                 </label>

@@ -2,8 +2,9 @@
  * LOST-02, ADM-07, ADM-08: Загрузка реестра (суперадмин), загрузка контактов, шаблон по подъезду.
  */
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { clearAuth, getRoleFromToken } from '../App'
+import { entranceButtonLabel, entranceBarLabel } from '../utils/entranceLabel'
 
 const EXPECTED_COLUMNS_REGISTER = [
   'cadastral_number', 'area', 'entrance', 'floor', 'premises_type', 'premises_number',
@@ -29,6 +30,7 @@ export default function Upload() {
   const [loadingTemplate, setLoadingTemplate] = useState(false)
   const [templateError, setTemplateError] = useState(null)
   const navigate = useNavigate()
+  const location = useLocation()
 
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mkd_access_token') : null
   const isSuperAdmin = getRoleFromToken(token) === 'super_administrator'
@@ -40,6 +42,14 @@ export default function Upload() {
       .then((d) => setEntrances(d.entrances || []))
       .catch(() => setEntrances([]))
   }, [token])
+
+  // Восстановление подъезда из state при переходе с экрана «Контакты» (п. 8 ADM-08)
+  useEffect(() => {
+    const fromState = location.state?.entrance
+    if (fromState != null && fromState !== '' && entrances.includes(fromState)) {
+      setEntrance(fromState)
+    }
+  }, [location.state?.entrance, entrances])
 
   const handleSubmitRegister = async (e) => {
     e.preventDefault()
@@ -230,15 +240,37 @@ export default function Upload() {
       <section className="upload-section" aria-labelledby="template-heading">
         <h2 id="template-heading">Шаблон контактов по подъезду</h2>
         <p>Скачайте XLSX со всеми помещениями выбранного подъезда и известными контактами. Заполните или отредактируйте и загрузите через «Загрузка контактов».</p>
-        <form onSubmit={handleDownloadTemplate}>
-          <label htmlFor="template-entrance">Подъезд</label>
-          <select id="template-entrance" value={entrance} onChange={(e) => setEntrance(e.target.value)} disabled={!token} aria-describedby="template-entrance-help">
-            <option value="">— выберите —</option>
-            {entrances.map((e) => <option key={e} value={e}>{e}</option>)}
-          </select>
-          <span id="template-entrance-help" className="help">{entrances.length === 0 && token ? 'Нет подъездов в реестре' : ''}</span>
-          <button type="submit" disabled={!entrance || loadingTemplate}>{loadingTemplate ? 'Формирование…' : 'Сформировать шаблон'}</button>
-        </form>
+        {!token ? (
+          <p className="help">Требуется авторизация.</p>
+        ) : entrances.length === 0 ? (
+          <p className="help">Нет подъездов в реестре. Загрузите реестр.</p>
+        ) : !entrance ? (
+          <div className="template-entrance-select" role="group" aria-label="Выбор подъезда для шаблона">
+            <p className="entrance-prompt">Выберите подъезд для формирования шаблона.</p>
+            <div className="entrance-buttons">
+              {entrances.map((ent) => (
+                <button
+                  key={ent}
+                  type="button"
+                  className="entrance-btn"
+                  onClick={() => setEntrance(ent)}
+                >
+                  {entranceButtonLabel(ent)}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleDownloadTemplate}>
+            <div className="entrance-bar">
+              <span className="entrance-current">{entranceBarLabel(entrance)}</span>
+              <button type="button" className="btn-link" onClick={() => setEntrance('')}>
+                Выбрать другой подъезд
+              </button>
+            </div>
+            <button type="submit" disabled={loadingTemplate}>{loadingTemplate ? 'Формирование…' : 'Сформировать шаблон'}</button>
+          </form>
+        )}
         {templateError && <div className="import-error" role="alert">{templateError}</div>}
       </section>
     </div>

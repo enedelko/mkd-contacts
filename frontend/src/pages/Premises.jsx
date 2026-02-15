@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { entranceButtonLabel, entranceInlineLabel } from '../utils/entranceLabel'
 
 const API = '/api/premises'
 
@@ -134,7 +135,7 @@ export default function Premises() {
                 <select value={entrance} onChange={(e) => setEntrance(e.target.value)} disabled={loading}>
                   <option value="">— выберите —</option>
                   {entrances.map((e) => (
-                    <option key={e} value={e}>{e}</option>
+                    <option key={e} value={e}>{entranceButtonLabel(e)}</option>
                   ))}
                 </select>
               </label>
@@ -182,7 +183,7 @@ export default function Premises() {
           </div>
           {selectedPremise && (
             <div className="selected-premise">
-              <p>Выбрано: {entrance ? `подъезд ${entrance}, ` : ''}этаж {floor}, {type} № {selectedPremise.number}</p>
+              <p>Выбрано: {entrance ? `${entranceInlineLabel(entrance)}, ` : ''}этаж {floor}, {type} № {selectedPremise.number}</p>
               <button type="button" onClick={handleGoToForm}>Перейти к форме анкеты</button>
             </div>
           )}

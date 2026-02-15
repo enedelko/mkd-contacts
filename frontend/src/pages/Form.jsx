@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { formatPhoneOnBlur } from '../utils/phoneFormat'
+import { entranceButtonLabel } from '../utils/entranceLabel'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
 const POLICY_URL = import.meta.env.VITE_POLICY_URL || '/policy'
@@ -15,7 +16,7 @@ export default function Form() {
   const premise = location.state?.premise
   const premiseLabel = location.state
     ? [
-        location.state.hasEntrances ? `Подъезд ${location.state.entrance || '—'}` : null,
+        location.state.hasEntrances ? entranceButtonLabel(location.state.entrance || '—') : null,
         `Этаж ${location.state.floor}`,
         `${location.state.type} № ${premise?.number}`,
       ].filter(Boolean).join(' / ')
