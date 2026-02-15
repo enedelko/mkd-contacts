@@ -29,10 +29,10 @@ export default function SuperadminAdmins() {
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [addForm, setAddForm] = useState({ telegram_id: '', login: '', password: '' })
+  const [addForm, setAddForm] = useState({ telegram_id: '', login: '', password: '', full_name: '', premises: '' })
   const [adding, setAdding] = useState(false)
   const [patchRow, setPatchRow] = useState(null)
-  const [patchForm, setPatchForm] = useState({ login: '', password: '' })
+  const [patchForm, setPatchForm] = useState({ login: '', password: '', full_name: '', premises: '' })
   const [patching, setPatching] = useState(false)
 
   const fetchList = useCallback(async () => {
@@ -79,6 +79,8 @@ export default function SuperadminAdmins() {
       const body = { telegram_id: tid, role: 'administrator' }
       if (addForm.login.trim()) body.login = addForm.login.trim()
       if (addForm.password) body.password = addForm.password
+      if (addForm.full_name.trim()) body.full_name = addForm.full_name.trim()
+      if (addForm.premises.trim()) body.premises = addForm.premises.trim()
       const res = await fetch('/api/superadmin/admins', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -86,7 +88,7 @@ export default function SuperadminAdmins() {
       })
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
-        setAddForm({ telegram_id: '', login: '', password: '' })
+        setAddForm({ telegram_id: '', login: '', password: '', full_name: '', premises: '' })
         fetchList()
       } else {
         setError(typeof data.detail === 'string' ? data.detail : 'Ошибка добавления')
@@ -127,6 +129,8 @@ export default function SuperadminAdmins() {
     try {
       const body = { login: loginVal || '' }
       if (hasPassword) body.password = patchForm.password
+      body.full_name = patchForm.full_name.trim()
+      body.premises = patchForm.premises.trim()
       const res = await fetch(`/api/superadmin/admins/${encodeURIComponent(patchRow.telegram_id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -135,7 +139,7 @@ export default function SuperadminAdmins() {
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
         setPatchRow(null)
-        setPatchForm({ login: '', password: '' })
+        setPatchForm({ login: '', password: '', full_name: '', premises: '' })
         fetchList()
       } else {
         setError(typeof data.detail === 'string' ? data.detail : 'Ошибка сохранения')
@@ -191,6 +195,26 @@ export default function SuperadminAdmins() {
               disabled={adding}
             />
           </label>
+          <label>
+            ФИО (для раздела 9 Политики, необязательно)
+            <input
+              type="text"
+              value={addForm.full_name}
+              onChange={(e) => setAddForm((p) => ({ ...p, full_name: e.target.value }))}
+              placeholder="Иванов И. И."
+              disabled={adding}
+            />
+          </label>
+          <label>
+            Помещение (например Ап.96, необязательно)
+            <input
+              type="text"
+              value={addForm.premises}
+              onChange={(e) => setAddForm((p) => ({ ...p, premises: e.target.value }))}
+              placeholder="Ап.96"
+              disabled={adding}
+            />
+          </label>
           <button type="submit" disabled={adding}>{adding ? 'Добавление…' : 'Добавить'}</button>
         </form>
       </section>
@@ -206,6 +230,8 @@ export default function SuperadminAdmins() {
                 <th>Telegram ID</th>
                 <th title="Чат в Telegram">ТГ</th>
                 <th>Роль</th>
+                <th>ФИО</th>
+                <th>Помещение</th>
                 <th>Текущий логин</th>
                 <th>Добавлен</th>
                 <th>Действия</th>
@@ -223,6 +249,8 @@ export default function SuperadminAdmins() {
                     )}
                   </td>
                   <td>{a.role === 'super_administrator' ? 'Суперадмин' : 'Администратор'}</td>
+                  <td>{a.full_name ?? '—'}</td>
+                  <td>{a.premises ?? '—'}</td>
                   <td>{a.login ?? '—'}</td>
                   <td>{a.created_at ? new Date(a.created_at).toLocaleDateString('ru-RU') : '—'}</td>
                   <td>
@@ -232,10 +260,10 @@ export default function SuperadminAdmins() {
                       onClick={() => {
                         if (patchRow?.telegram_id === a.telegram_id) {
                           setPatchRow(null)
-                          setPatchForm({ login: '', password: '' })
+                          setPatchForm({ login: '', password: '', full_name: '', premises: '' })
                         } else {
                           setPatchRow(a)
-                          setPatchForm({ login: a.login ?? '', password: '' })
+                          setPatchForm({ login: a.login ?? '', password: '', full_name: a.full_name ?? '', premises: a.premises ?? '' })
                         }
                       }}
                     >
@@ -260,8 +288,8 @@ export default function SuperadminAdmins() {
 
       {patchRow && (
         <section className="superadmin-patch-form">
-          <h2>Логин и пароль для {patchRow.telegram_id}</h2>
-          <p className="superadmin-patch-hint">Текущий логин отображается ниже. Очистите поле логина и сохраните — логин и пароль будут удалены, вход только через Telegram.</p>
+          <h2>Логин, пароль и контактные данные для {patchRow.telegram_id}</h2>
+          <p className="superadmin-patch-hint">Текущий логин отображается ниже. Очистите поле логина и сохраните — логин и пароль будут удалены, вход только через Telegram. ФИО и помещение отображаются в разделе 9 Политики конфиденциальности.</p>
           <form onSubmit={handlePatch}>
             <label>
               Логин (очистите, чтобы отключить вход по логину/паролю)
@@ -283,8 +311,28 @@ export default function SuperadminAdmins() {
                 disabled={patching}
               />
             </label>
+            <label>
+              ФИО (для раздела 9 Политики)
+              <input
+                type="text"
+                value={patchForm.full_name}
+                onChange={(e) => setPatchForm((p) => ({ ...p, full_name: e.target.value }))}
+                placeholder="Иванов И. И."
+                disabled={patching}
+              />
+            </label>
+            <label>
+              Помещение (например Ап.96)
+              <input
+                type="text"
+                value={patchForm.premises}
+                onChange={(e) => setPatchForm((p) => ({ ...p, premises: e.target.value }))}
+                placeholder="Ап.96"
+                disabled={patching}
+              />
+            </label>
             <button type="submit" disabled={patching}>{patching ? 'Сохранение…' : 'Сохранить'}</button>
-            <button type="button" onClick={() => { setPatchRow(null); setPatchForm({ login: '', password: '' }) }}>Отмена</button>
+            <button type="button" onClick={() => { setPatchRow(null); setPatchForm({ login: '', password: '', full_name: '', premises: '' }) }}>Отмена</button>
           </form>
         </section>
       )}

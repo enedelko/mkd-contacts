@@ -47,12 +47,16 @@ class AddAdminBody(BaseModel):
     role: str = "administrator"
     login: str | None = None
     password: str | None = None
+    full_name: str | None = None
+    premises: str | None = None
 
 
 class PatchAdminBody(BaseModel):
-    """Установка или смена логина/пароля для админа (только суперадмин)."""
+    """Установка или смена логина/пароля и ФИО/помещение для админа (только суперадмин)."""
     login: str | None = None
     password: str | None = None
+    full_name: str | None = None
+    premises: str | None = None
 
 
 @router.get("/admins")
@@ -63,7 +67,7 @@ def list_admins(
     with get_db() as db:
         rows = db.execute(
             text(
-                "SELECT telegram_id, role, created_at, login FROM admins ORDER BY created_at"
+                "SELECT telegram_id, role, created_at, login, full_name, premises FROM admins ORDER BY created_at"
             )
         ).fetchall()
     return [
@@ -73,6 +77,8 @@ def list_admins(
             "created_at": r[2].isoformat() if r[2] else None,
             "login": r[3] if r[3] else None,
             "has_login": bool(r[3]),
+            "full_name": r[4] if r[4] else None,
+            "premises": r[5] if r[5] else None,
         }
         for r in rows
     ]
@@ -90,13 +96,15 @@ def add_admin(
     tid = body.telegram_id.strip()
     login_val = (body.login or "").strip().lower() or None
     password_hash = hash_password(body.password) if body.password else None
+    full_name = (body.full_name or "").strip() or "—"
+    premises = (body.premises or "").strip() or "—"
     with get_db() as db:
         db.execute(
             text(
-                "INSERT INTO admins (telegram_id, role, login, password_hash) "
-                "VALUES (:tid, :role, :login, :ph) ON CONFLICT (telegram_id) DO NOTHING"
+                "INSERT INTO admins (telegram_id, role, login, password_hash, full_name, premises) "
+                "VALUES (:tid, :role, :login, :ph, :full_name, :premises) ON CONFLICT (telegram_id) DO NOTHING"
             ),
-            {"tid": tid, "role": body.role, "login": login_val, "ph": password_hash},
+            {"tid": tid, "role": body.role, "login": login_val, "ph": password_hash, "full_name": full_name, "premises": premises},
         )
         _audit_log(db, "admin", tid, "insert", None, body.role, payload.get("sub"), _client_ip(request))
         if password_hash:
@@ -139,6 +147,12 @@ def patch_admin(
                 )
             updates.append("password_hash = :ph")
             params["ph"] = hash_password(body.password)
+        if body.full_name is not None:
+            updates.append("full_name = :full_name")
+            params["full_name"] = (body.full_name or "").strip() or "—"
+        if body.premises is not None:
+            updates.append("premises = :premises")
+            params["premises"] = (body.premises or "").strip() or "—"
         if updates:
             db.execute(
                 text(
@@ -151,6 +165,10 @@ def patch_admin(
                 parts.append("login")
             if body.password is not None and (body.password or "").strip():
                 parts.append("password")
+            if body.full_name is not None:
+                parts.append("full_name")
+            if body.premises is not None:
+                parts.append("premises")
             _audit_log(db, "admin", telegram_id, "update", None, ",".join(parts) if parts else "login,password", payload.get("sub"), _client_ip(request))
             if body.password is not None and (body.password or "").strip():
                 _audit_log(db, "admin", telegram_id, "password_change", None, "by_superadmin", payload.get("sub"), _client_ip(request))

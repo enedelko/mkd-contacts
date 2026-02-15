@@ -1,8 +1,32 @@
 /**
  * Политика конфиденциальности — обработка ПДн в соответствии с 152-ФЗ.
- * Версия политики: 1.0
+ * Версия политики: 1.0. Раздел 9: перечень админов (ФИО, помещение) из API.
  */
+import { useState, useEffect } from 'react'
+
 export default function Policy() {
+  const [admins, setAdmins] = useState([])
+  const [adminsLoading, setAdminsLoading] = useState(true)
+  const [adminsError, setAdminsError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setAdminsLoading(true)
+    setAdminsError(false)
+    fetch('/api/policy/admins')
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Failed to load'))))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data)) setAdmins(data)
+      })
+      .catch(() => {
+        if (!cancelled) setAdminsError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setAdminsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <div className="policy-page">
       <h1>Политика конфиденциальности</h1>
@@ -111,6 +135,18 @@ export default function Policy() {
         к администраторам Приложения через Telegram-бот{' '}
         <strong>@mkd_contacts_bot</strong>.
       </p>
+      {adminsLoading && <p className="policy-admins-loading">Загрузка списка администраторов…</p>}
+      {adminsError && <p className="policy-admins-error">Список администраторов временно недоступен.</p>}
+      {!adminsLoading && !adminsError && admins.length > 0 && (
+        <div className="policy-admins-list">
+          <p>Перечень администраторов Приложения (ФИО, помещение):</p>
+          <ul>
+            {admins.map((a, i) => (
+              <li key={i}>{a.full_name} — {a.premises}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <h2>10. Изменение Политики</h2>
       <p>
