@@ -19,7 +19,9 @@
 * **SR-ADM01-PWD-003:** Логин должен быть уникальным в рамках таблицы `admins`; при поиске по логину применяется нормализация (trim, lower case).
 * **SR-ADM01-PWD-004:** При успешной проверке логина и пароля система выдаёт JWT с `sub`, равным `telegram_id` соответствующей записи в `admins` (единый идентификатор для аудита и прав).
 * **SR-ADM01-PWD-005:** Система должна предоставлять эндпоинт смены пароля для текущего авторизованного администратора по предъявлению текущего пароля и нового пароля (не короче 8 символов).
+* **SR-ADM01-PWD-005a:** Каждая успешная смена пароля (админом для себя через POST /api/auth/change-password) должна записываться в audit_log (BE-03): entity_type=admin, entity_id=telegram_id, action=password_change, new_value=self, user_id и IP — без записи самих паролей.
 * **SR-ADM01-PWD-006:** Установка и изменение логина/пароля для произвольного админа доступна только суперадмину (расширение API ADM-04: опциональные login/password при добавлении админа и PATCH для существующего).
+* **SR-ADM01-PWD-006a:** Установка/смена пароля суперадмином (при добавлении админа с паролем или PATCH логина/пароля) должна записываться в audit_log: action=password_change, new_value=on_create или by_superadmin; entity_id — telegram_id целевого админа (ADM-05).
 * **SR-ADM01-PWD-007:** Клиент должен отображать на странице входа форму «Логин» + «Пароль» и кнопку «Войти по логину и паролю», а также (при настроенном боте) кнопку «Войти через Telegram».
 * **SR-ADM01-PWD-008:** Клиент должен предоставлять страницу «Смена пароля» (поля: текущий пароль, новый пароль, подтверждение) и ссылку на неё в навигации для авторизованного пользователя.
 
@@ -82,8 +84,8 @@
 |-----------|--------------|
 | Миграция 005 (login, password_hash) | [backend/alembic/versions/005_admins_login_password.py](../../backend/alembic/versions/005_admins_login_password.py) |
 | Хеширование и проверка пароля | [backend/app/auth_password.py](../../backend/app/auth_password.py) |
-| Эндпоинты login, change-password | [backend/app/routers/auth.py](../../backend/app/routers/auth.py) |
-| PATCH/POST расширения (суперадмин) | [backend/app/routers/superadmin.py](../../backend/app/routers/superadmin.py) |
+| Эндпоинты login, change-password; запись в audit_log при смене пароля | [backend/app/routers/auth.py](../../backend/app/routers/auth.py) |
+| PATCH/POST расширения (суперадмин); запись password_change в audit_log | [backend/app/routers/superadmin.py](../../backend/app/routers/superadmin.py) |
 | Страница входа (форма + Telegram) | [frontend/src/pages/Login.jsx](../../frontend/src/pages/Login.jsx) |
 | Страница смены пароля | [frontend/src/pages/ChangePassword.jsx](../../frontend/src/pages/ChangePassword.jsx) |
 | Зависимость passlib[bcrypt] | [backend/requirements.txt](../../backend/requirements.txt) |

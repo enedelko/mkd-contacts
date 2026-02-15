@@ -120,17 +120,12 @@ export default function SuperadminAdmins() {
   const handlePatch = async (e) => {
     e.preventDefault()
     if (!patchRow) return
-    const hasLogin = patchForm.login.trim()
+    const loginVal = patchForm.login.trim()
     const hasPassword = patchForm.password.length >= 8
-    if (!hasLogin && !hasPassword) {
-      setError('Укажите логин и/или пароль (не короче 8 символов)')
-      return
-    }
     setPatching(true)
     setError(null)
     try {
-      const body = {}
-      if (hasLogin) body.login = patchForm.login.trim()
+      const body = { login: loginVal || '' }
       if (hasPassword) body.password = patchForm.password
       const res = await fetch(`/api/superadmin/admins/${encodeURIComponent(patchRow.telegram_id)}`, {
         method: 'PATCH',
@@ -211,7 +206,7 @@ export default function SuperadminAdmins() {
                 <th>Telegram ID</th>
                 <th title="Чат в Telegram">ТГ</th>
                 <th>Роль</th>
-                <th>Логин</th>
+                <th>Текущий логин</th>
                 <th>Добавлен</th>
                 <th>Действия</th>
               </tr>
@@ -228,7 +223,7 @@ export default function SuperadminAdmins() {
                     )}
                   </td>
                   <td>{a.role === 'super_administrator' ? 'Суперадмин' : 'Администратор'}</td>
-                  <td>{a.has_login ? 'Да' : '—'}</td>
+                  <td>{a.login ?? '—'}</td>
                   <td>{a.created_at ? new Date(a.created_at).toLocaleDateString('ru-RU') : '—'}</td>
                   <td>
                     <button
@@ -240,7 +235,7 @@ export default function SuperadminAdmins() {
                           setPatchForm({ login: '', password: '' })
                         } else {
                           setPatchRow(a)
-                          setPatchForm({ login: '', password: '' })
+                          setPatchForm({ login: a.login ?? '', password: '' })
                         }
                       }}
                     >
@@ -266,18 +261,20 @@ export default function SuperadminAdmins() {
       {patchRow && (
         <section className="superadmin-patch-form">
           <h2>Логин и пароль для {patchRow.telegram_id}</h2>
+          <p className="superadmin-patch-hint">Текущий логин отображается ниже. Очистите поле логина и сохраните — логин и пароль будут удалены, вход только через Telegram.</p>
           <form onSubmit={handlePatch}>
             <label>
-              Логин
+              Логин (очистите, чтобы отключить вход по логину/паролю)
               <input
                 type="text"
                 value={patchForm.login}
                 onChange={(e) => setPatchForm((p) => ({ ...p, login: e.target.value }))}
+                placeholder="текущий логин"
                 disabled={patching}
               />
             </label>
             <label>
-              Пароль (не короче 8 символов)
+              Пароль (не короче 8 символов; при очистке логина пароль тоже удаляется)
               <input
                 type="password"
                 value={patchForm.password}

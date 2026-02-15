@@ -2,6 +2,7 @@
 ADM-01: Telegram OAuth callback и вход по логину/паролю, выдача JWT (white-list из admins).
 Эндпоинт bot-id для построения URL входа в новом окне (popup) вместо iframe.
 Поддержка tg_auth_result: oauth.telegram.org в popup возвращает только id в base64 (без hash).
+Смена пароля (POST /change-password) записывается в audit_log (BE-03).
 """
 import base64
 import json
@@ -9,9 +10,10 @@ import logging
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from app.auth_password import (
     get_admin_by_login,
@@ -21,9 +23,34 @@ from app.auth_password import (
 )
 from app.auth_telegram import get_admin_by_telegram_id, verify_telegram_login
 from app.config import TELEGRAM_BOT_TOKEN
+from app.db import get_db
 from app.jwt_utils import create_access_token, require_admin
 
 logger = logging.getLogger(__name__)
+
+
+def _client_ip(request: Request) -> str | None:
+    """IP клиента (за nginx — X-Forwarded-For / X-Real-IP)."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or None
+    if request.headers.get("x-real-ip"):
+        return request.headers.get("x-real-ip").strip() or None
+    return request.client.host if request.client else None
+
+
+def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str | None, new_value: str | None, user_id: str | None, ip: str | None) -> None:
+    """Запись в аудит-лог (BE-03). Пароли в лог не попадают."""
+    try:
+        db.execute(
+            text(
+                "INSERT INTO audit_log (entity_type, entity_id, action, old_value, new_value, user_id, ip) "
+                "VALUES (:et, :eid, :act, :old, :new, :uid, :ip)"
+            ),
+            {"et": entity_type, "eid": entity_id, "act": action, "old": old_value, "new": new_value, "uid": user_id, "ip": ip},
+        )
+    except Exception as e:
+        logger.warning("audit_log insert failed: %s", e)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -64,10 +91,11 @@ def login_password(body: LoginBody) -> JSONResponse:
 
 @router.post("/change-password")
 def change_password(
+    request: Request,
     body: ChangePasswordBody,
     payload: dict = Depends(require_admin),
 ) -> Response:
-    """Смена пароля для текущего администратора (по текущему паролю)."""
+    """Смена пароля для текущего администратора (по текущему паролю). Запись в audit_log (BE-03)."""
     sub = payload.get("sub")
     if not sub:
         return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
@@ -88,6 +116,9 @@ def change_password(
             content={"detail": "Новый пароль должен быть не короче 8 символов"},
         )
     set_admin_password(sub, new)
+    with get_db() as db:
+        _audit_log(db, "admin", str(sub), "password_change", None, "self", str(sub), _client_ip(request))
+        db.commit()
     return Response(status_code=204)
 
 

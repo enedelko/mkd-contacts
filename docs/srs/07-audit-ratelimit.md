@@ -130,6 +130,8 @@ Rate limiting реализуется на Backend (middleware или завис�
 | Массовая смена статуса — PATCH /api/admin/contacts/bulk-status (CORE-03) | [backend/app/routers/admin_contacts.py](../../backend/app/routers/admin_contacts.py) — `bulk_update_status()` | ✅ |
 | UI массовых действий — чекбоксы + кнопки (CORE-03) | [frontend/src/pages/AdminContactsList.jsx](../../frontend/src/pages/AdminContactsList.jsx) | ✅ |
 | GET /api/admin/contacts с фильтрами (CORE-03) | [backend/app/routers/admin_contacts.py](../../backend/app/routers/admin_contacts.py) | ✅ |
+| Смена пароля в audit_log: админ (сам себе) — action=password_change, new_value=self | [backend/app/routers/auth.py](../../backend/app/routers/auth.py) — `change_password()` | ✅ |
+| Смена/установка пароля суперадмином — action=password_change, new_value=on_create/by_superadmin | [backend/app/routers/superadmin.py](../../backend/app/routers/superadmin.py) — POST/PATCH admins | ✅ |
 
 ### 9. Доработки UI (уточнения реализации)
 

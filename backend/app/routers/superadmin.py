@@ -71,6 +71,7 @@ def list_admins(
             "telegram_id": r[0],
             "role": r[1],
             "created_at": r[2].isoformat() if r[2] else None,
+            "login": r[3] if r[3] else None,
             "has_login": bool(r[3]),
         }
         for r in rows
@@ -98,6 +99,8 @@ def add_admin(
             {"tid": tid, "role": body.role, "login": login_val, "ph": password_hash},
         )
         _audit_log(db, "admin", tid, "insert", None, body.role, payload.get("sub"), _client_ip(request))
+        if password_hash:
+            _audit_log(db, "admin", tid, "password_change", None, "on_create", payload.get("sub"), _client_ip(request))
         db.commit()
     logger.info("ADM-04: Admin added telegram_id=%s by sub=%s", tid, payload.get("sub"))
     return {"ok": True, "telegram_id": tid, "role": body.role}
@@ -121,9 +124,13 @@ def patch_admin(
         updates = []
         params = {"tid": telegram_id}
         if body.login is not None:
-            login_val = body.login.strip().lower() if body.login else None
+            login_val = (body.login or "").strip().lower() or None
             updates.append("login = :login")
             params["login"] = login_val
+            if login_val is None:
+                # Очистка логина — убираем и пароль, вход только через Telegram
+                updates.append("password_hash = :ph_null")
+                params["ph_null"] = None
         if body.password is not None and (body.password or "").strip():
             if len((body.password or "").strip()) < 8:
                 raise HTTPException(
@@ -145,6 +152,8 @@ def patch_admin(
             if body.password is not None and (body.password or "").strip():
                 parts.append("password")
             _audit_log(db, "admin", telegram_id, "update", None, ",".join(parts) if parts else "login,password", payload.get("sub"), _client_ip(request))
+            if body.password is not None and (body.password or "").strip():
+                _audit_log(db, "admin", telegram_id, "password_change", None, "by_superadmin", payload.get("sub"), _client_ip(request))
             db.commit()
     logger.info("ADM-04: Admin patched telegram_id=%s (login/password) by sub=%s", telegram_id, payload.get("sub"))
     return {"ok": True, "telegram_id": telegram_id}
