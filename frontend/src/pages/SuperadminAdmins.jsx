@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearAuth } from '../App'
 import TelegramIcon from '../components/TelegramIcon'
+import { checkConsentRedirect } from '../utils/adminApi'
 
 function getToken() {
   if (typeof window === 'undefined') return null
@@ -43,7 +44,9 @@ export default function SuperadminAdmins() {
       const res = await fetch('/api/superadmin/admins', {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (res.status === 401 || res.status === 403) {
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
         clearAuth()
         navigate('/login', { replace: true })
         return
@@ -86,6 +89,13 @@ export default function SuperadminAdmins() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       })
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
+        clearAuth()
+        navigate('/login', { replace: true })
+        return
+      }
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
         setAddForm({ telegram_id: '', login: '', password: '', full_name: '', premises: '' })
@@ -108,6 +118,13 @@ export default function SuperadminAdmins() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
+        clearAuth()
+        navigate('/login', { replace: true })
+        return
+      }
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
         fetchList()
@@ -136,6 +153,13 @@ export default function SuperadminAdmins() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       })
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
+        clearAuth()
+        navigate('/login', { replace: true })
+        return
+      }
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
         setPatchRow(null)

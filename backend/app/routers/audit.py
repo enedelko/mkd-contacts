@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 
 from app.db import get_db
-from app.jwt_utils import require_admin
+from app.jwt_utils import require_admin_with_consent
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -20,7 +20,7 @@ def list_audit(
     user_id: str | None = Query(None, description="Фильтр по ID пользователя"),
     limit: int = Query(50, ge=1, le=500, description="Кол-во записей"),
     offset: int = Query(0, ge=0, description="Смещение"),
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
     """
     BE-03 / SR-BE03-005: список записей аудит-лога с фильтрами.

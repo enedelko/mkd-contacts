@@ -65,6 +65,59 @@ class ChangePasswordBody(BaseModel):
     new_password: str
 
 
+class ConsentBody(BaseModel):
+    consent_version: str
+
+
+@router.get("/consent-status")
+def consent_status(payload: dict = Depends(require_admin)) -> JSONResponse:
+    """ADM-09: Статус принятия согласия с Политикой конфиденциальности. Проверка согласия не требуется."""
+    sub = payload.get("sub")
+    if not sub:
+        return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+    with get_db() as db:
+        row = db.execute(
+            text("SELECT policy_consent_at, policy_consent_version FROM admins WHERE telegram_id = :tid"),
+            {"tid": str(sub)},
+        ).fetchone()
+    if not row:
+        return JSONResponse(status_code=403, content={"detail": "Admin not found"})
+    accepted = row[0] is not None
+    version = row[1] if row[1] else None
+    return JSONResponse(
+        content={
+            "policy_consent_accepted": accepted,
+            "policy_consent_version": version,
+        },
+    )
+
+
+@router.post("/consent")
+def consent(
+    request: Request,
+    body: ConsentBody,
+    payload: dict = Depends(require_admin),
+) -> Response:
+    """ADM-09: Принять ответственность за ПДн (Политика конфиденциальности). Запись в audit_log."""
+    sub = payload.get("sub")
+    if not sub:
+        return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+    version = (body.consent_version or "").strip() or None
+    if not version:
+        return JSONResponse(status_code=400, content={"detail": "Укажите версию политики (consent_version)"})
+    with get_db() as db:
+        db.execute(
+            text(
+                "UPDATE admins SET policy_consent_at = now(), policy_consent_version = :v WHERE telegram_id = :tid"
+            ),
+            {"v": version, "tid": str(sub)},
+        )
+        _audit_log(db, "admin", str(sub), "policy_consent", None, version, str(sub), _client_ip(request))
+        db.commit()
+    logger.info("ADM-09: Policy consent accepted telegram_id=%s version=%s", sub, version)
+    return Response(status_code=204)
+
+
 @router.post("/login")
 def login_password(body: LoginBody) -> JSONResponse:
     """Вход по логину и паролю. JWT в том же формате, что и при входе через Telegram."""

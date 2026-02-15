@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from app.auth_password import hash_password
 from app.db import get_db
-from app.jwt_utils import require_super_admin
+from app.jwt_utils import require_super_admin_with_consent
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class PatchAdminBody(BaseModel):
 
 @router.get("/admins")
 def list_admins(
-    payload: dict = Depends(require_super_admin),
+    payload: dict = Depends(require_super_admin_with_consent),
 ) -> list[dict[str, Any]]:
     """ADM-04: Список администраторов (без чувствительных данных)."""
     with get_db() as db:
@@ -88,7 +88,7 @@ def list_admins(
 def add_admin(
     request: Request,
     body: AddAdminBody,
-    payload: dict = Depends(require_super_admin),
+    payload: dict = Depends(require_super_admin_with_consent),
 ) -> dict[str, Any]:
     """ADM-04: Добавить администратора (только administrator). Опционально login и password. ADM-05: пишем в audit_log."""
     if body.role != "administrator":
@@ -119,7 +119,7 @@ def patch_admin(
     request: Request,
     telegram_id: str,
     body: PatchAdminBody,
-    payload: dict = Depends(require_super_admin),
+    payload: dict = Depends(require_super_admin_with_consent),
 ) -> dict[str, Any]:
     """Установить или изменить логин и/или пароль для администратора. ADM-05: пишем в audit_log."""
     with get_db() as db:
@@ -181,7 +181,7 @@ def patch_admin(
 def delete_admin(
     request: Request,
     telegram_id: str,
-    payload: dict = Depends(require_super_admin),
+    payload: dict = Depends(require_super_admin_with_consent),
 ) -> dict[str, Any]:
     """ADM-04: Удалить из белого списка. Суперадмин не может удалить себя (SR-ADM04-003). ADM-05: пишем в audit_log."""
     current_sub = payload.get("sub")

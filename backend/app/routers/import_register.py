@@ -20,7 +20,7 @@ from app.import_register import (
     run_import_contacts_only,
     transliterate_entrance_for_filename,
 )
-from app.jwt_utils import require_admin, require_super_admin
+from app.jwt_utils import require_admin_with_consent, require_super_admin_with_consent
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB (NFR Performance)
 @router.post("/import/register")
 def import_register(
     file: UploadFile = File(...),
-    payload: dict = Depends(require_super_admin),
+    payload: dict = Depends(require_super_admin_with_consent),
 ) -> dict[str, Any]:
     """
     CORE-01: Загрузка реестра помещений и контактов (CSV, XLS, XLSX). Только суперадмин.
@@ -107,7 +107,7 @@ def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str
 @router.post("/import/contacts")
 def import_contacts(
     file: UploadFile = File(...),
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
     """
     ADM-06: Загрузка только контактов (CSV, XLS, XLSX). Доступна любому админу.
@@ -163,7 +163,7 @@ def import_contacts(
 def contacts_template(
     request: Request,
     entrance: str = Query(..., description="Подъезд"),
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> Response:
     """
     ADM-08: Скачать XLSX-шаблон контактов по подъезду. Одна строка на контакт.

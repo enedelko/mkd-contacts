@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.db import get_db
-from app.jwt_utils import require_admin
+from app.jwt_utils import require_admin_with_consent
 from app.crypto import decrypt, encrypt, blind_index_phone, blind_index_email, blind_index_telegram_id
 from app.validators import validate_phone, validate_email, validate_telegram_id
 
@@ -42,7 +42,7 @@ def list_contacts(
     ip: str | None = Query(None, description="Фильтр по IP (ADM-02)"),
     from_date: str | None = Query(None, description="Начало диапазона дат created_at (ISO)"),
     to_date: str | None = Query(None, description="Конец диапазона дат created_at (ISO)"),
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
     """
     VAL-01 / CORE-03 / ADM-02: Список контактов для модерации. Расшифровка ПДн на лету.
@@ -141,7 +141,7 @@ def list_contacts(
 def get_contact(
     contact_id: int,
     request: Request,
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
     """Получить один контакт по ID с расшифровкой ПДн (для формы редактирования)."""
     with get_db() as db:
@@ -205,7 +205,7 @@ def _resolve_premise_cadastral(premise_id: str, db) -> str | None:
 def create_contact(
     body: AdminContactBody,
     request: Request,
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
     """
     ADM-03: Создать контакт от имени администратора. Статус автоматически «валидирован».
@@ -282,7 +282,7 @@ def update_contact(
     contact_id: int,
     body: AdminContactUpdateBody,
     request: Request,
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
     """Обновить контакт (все поля, кроме premise_id и status)."""
     if not body.phone and not body.email and not body.telegram_id:
@@ -372,7 +372,7 @@ def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str
 def bulk_update_status(
     body: BulkStatusBody,
     request: Request,
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
     """
     CORE-03 / SR-CORE03-001: Массовая смена статуса контактов.
@@ -417,7 +417,7 @@ def update_contact_status(
     contact_id: int,
     body: StatusBody,
     request: Request,
-    payload: dict = Depends(require_admin),
+    payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
     """
     VAL-01: Установка статуса контакта «валидирован» или «неактуальный».

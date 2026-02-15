@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { clearAuth } from '../App'
 import TelegramIcon from '../components/TelegramIcon'
+import { checkConsentRedirect } from '../utils/adminApi'
 import { formatPhoneOnBlur } from '../utils/phoneFormat'
 import { entranceButtonLabel, entranceInlineLabel } from '../utils/entranceLabel'
 
@@ -79,8 +80,14 @@ export default function AdminContacts() {
     fetch(`/api/admin/contacts/${editId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => {
-        if (r.status === 401 || r.status === 403) { clearAuth(); navigate('/login', { replace: true }); return null }
+      .then(async (r) => {
+        const { redirectConsent, dataFor403 } = await checkConsentRedirect(r, navigate)
+        if (redirectConsent) return null
+        if (dataFor403 !== undefined || r.status === 401 || r.status === 403) {
+          clearAuth()
+          navigate('/login', { replace: true })
+          return null
+        }
         if (!r.ok) throw new Error('Контакт не найден')
         return r.json()
       })
@@ -213,13 +220,15 @@ export default function AdminContacts() {
         body: JSON.stringify(bodyData),
       })
 
-      const data = await res.json().catch(() => ({}))
-
-      if (res.status === 401 || res.status === 403) {
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
         clearAuth()
         navigate('/login', { replace: true })
         return
       }
+
+      const data = await res.json().catch(() => ({}))
 
       if (res.ok) {
         if (isEdit) {

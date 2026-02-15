@@ -11,6 +11,7 @@ import AdminContactsList from './pages/AdminContactsList'
 import AuditLog from './pages/AuditLog'
 import ChangePassword from './pages/ChangePassword'
 import SuperadminAdmins from './pages/SuperadminAdmins'
+import AdminConsent from './pages/AdminConsent'
 
 /** Проверить, не протух ли JWT (по полю exp в payload). */
 function isTokenExpired(token) {
@@ -183,6 +184,7 @@ function App() {
         <Route path="/admin/contacts/:id" element={<AdminContacts />} />
         <Route path="/admin/contacts/list" element={<AdminContactsList />} />
         <Route path="/admin/audit" element={<AuditLog />} />
+        <Route path="/admin/consent" element={<AdminConsent />} />
         <Route path="/admin/change-password" element={<ChangePassword />} />
         <Route path="/admin/superadmin" element={<SuperadminAdmins />} />
         </Routes>

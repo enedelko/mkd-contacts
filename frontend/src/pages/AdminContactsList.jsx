@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { clearAuth } from '../App'
 import TelegramIcon from '../components/TelegramIcon'
+import { checkConsentRedirect } from '../utils/adminApi'
 import { entranceButtonLabel, entranceBarLabel } from '../utils/entranceLabel'
 
 const STATUS_LABELS = { pending: 'Ожидает', validated: 'Валидирован', inactive: 'Неактуальный' }
@@ -78,7 +79,9 @@ export default function AdminContactsList() {
       const res = await fetch(`/api/admin/contacts?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (res.status === 401 || res.status === 403) {
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
         clearAuth()
         navigate('/login', { replace: true })
         return
@@ -118,7 +121,9 @@ export default function AdminContactsList() {
         },
         body: JSON.stringify({ status: newStatus }),
       })
-      if (res.status === 401 || res.status === 403) {
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
         clearAuth()
         navigate('/login', { replace: true })
         return
@@ -168,7 +173,9 @@ export default function AdminContactsList() {
         },
         body: JSON.stringify({ contact_ids: [...selected], status: newStatus }),
       })
-      if (res.status === 401 || res.status === 403) {
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
         clearAuth()
         navigate('/login', { replace: true })
         return

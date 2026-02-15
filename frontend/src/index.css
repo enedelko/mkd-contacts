@@ -49,6 +49,12 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .login-page .link-style { background: none; border: none; color: #056; cursor: pointer; text-decoration: underline; font-size: 0.95rem; padding: 0; }
 .auth-callback-page { margin: 1rem 0; }
 .auth-callback-page .auth-error { color: #c62828; margin-bottom: 0.5rem; }
+.admin-consent-page { margin: 1rem 0; }
+.admin-consent-page .admin-consent-form { margin-top: 1.5rem; }
+.admin-consent-page .admin-consent-checkbox { display: flex; align-items: flex-start; gap: 0.5rem; margin: 1rem 0; }
+.admin-consent-page .admin-consent-checkbox input { margin-top: 0.25rem; }
+.admin-consent-page .admin-consent-error { color: #c62828; margin: 0.5rem 0; }
+.admin-consent-page .admin-consent-submit { margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
 .change-password-page { margin: 1rem 0; max-width: 24rem; }
 .change-password-page label { display: block; margin-bottom: 0.5rem; }
 .change-password-page input { display: block; width: 100%; margin-top: 0.25rem; padding: 0.4rem 0.5rem; }

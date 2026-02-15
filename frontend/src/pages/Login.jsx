@@ -52,7 +52,18 @@ export default function Login() {
         if (data.access_token) {
           localStorage.setItem('mkd_access_token', data.access_token)
           window.dispatchEvent(new CustomEvent('mkd-auth-change'))
-          navigate('/', { replace: true })
+          fetch('/api/auth/consent-status', {
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          })
+            .then((res) => res.json())
+            .then((status) => {
+              if (status.policy_consent_accepted) {
+                navigate('/', { replace: true })
+              } else {
+                navigate('/admin/consent', { replace: true })
+              }
+            })
+            .catch(() => navigate('/', { replace: true }))
         } else {
           setError(typeof data.detail === 'string' ? data.detail : 'Неверный логин или пароль')
         }

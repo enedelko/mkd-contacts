@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { clearAuth, getRoleFromToken } from '../App'
 import { entranceButtonLabel, entranceBarLabel } from '../utils/entranceLabel'
+import { checkConsentRedirect } from '../utils/adminApi'
 
 const EXPECTED_COLUMNS_REGISTER = [
   'cadastral_number', 'area', 'entrance', 'floor', 'premises_type', 'premises_number',
@@ -68,12 +69,14 @@ export default function Upload() {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
-      const data = await res.json().catch(() => ({}))
-      if (res.status === 401 || res.status === 403) {
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
         clearAuth()
         navigate('/login', { replace: true })
         return
       }
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         if (res.status === 400 && data.expected_columns && data.detected_columns) {
           setStructureErrorRegister({ expected: data.expected_columns, detected: data.detected_columns, detail: data.detail })
@@ -107,12 +110,14 @@ export default function Upload() {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
-      const data = await res.json().catch(() => ({}))
-      if (res.status === 401 || res.status === 403) {
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
         clearAuth()
         navigate('/login', { replace: true })
         return
       }
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         if (res.status === 400 && data.expected_columns && data.detected_columns) {
           setStructureErrorContacts({ expected: data.expected_columns, detected: data.detected_columns, detail: data.detail })
@@ -141,7 +146,9 @@ export default function Upload() {
       const res = await fetch(`/api/admin/import/contacts-template?entrance=${encodeURIComponent(entrance)}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (res.status === 401 || res.status === 403) {
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
         clearAuth()
         navigate('/login', { replace: true })
         return
