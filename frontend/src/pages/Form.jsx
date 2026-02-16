@@ -2,10 +2,12 @@
  * FE-04: Форма сбора данных (анкета) — SR-FE04-001..011.
  * Помещение, «Я собственник», контакт (телефон/Telegram/email), позиция ОСС, согласия, капча Turnstile.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { formatPhoneOnBlur } from '../utils/phoneFormat'
 import { entranceButtonLabel } from '../utils/entranceLabel'
+import { saveFormData, loadFormData, clearFormData, markSubmitted } from '../utils/sessionFormCache'
+import NudgeModal from '../components/NudgeModal'
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
 const POLICY_URL = import.meta.env.VITE_POLICY_URL || '/policy'
@@ -39,12 +41,44 @@ export default function Form() {
   const [message, setMessage] = useState(null)
   const [errors, setErrors] = useState({})
   const [admins, setAdmins] = useState([])
+  const [showNudge, setShowNudge] = useState(false)
+  const [fromCache, setFromCache] = useState(false)
 
   useEffect(() => {
     if (!premise && !location.state) {
       navigate('/premises', { replace: true })
     }
   }, [premise, location.state, navigate])
+
+  // FE-05: автозаполнение из sessionStorage (SR-FE05-002)
+  useEffect(() => {
+    const cached = loadFormData()
+    if (!cached) return
+    if (cached.isOwner !== undefined) setIsOwner(cached.isOwner)
+    if (cached.phone) setPhone(cached.phone)
+    if (cached.email) setEmail(cached.email)
+    if (cached.telegramId) setTelegramId(cached.telegramId)
+    if (cached.barrierVote) setBarrierVote(cached.barrierVote)
+    if (cached.voteFormat) setVoteFormat(cached.voteFormat)
+    if (cached.registeredEd) setRegisteredEd(cached.registeredEd)
+    setFromCache(true)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // FE-05: сохранение данных формы при изменении (SR-FE05-001)
+  const persistForm = useCallback(() => {
+    saveFormData({ isOwner, phone, email, telegramId, barrierVote, voteFormat, registeredEd })
+  }, [isOwner, phone, email, telegramId, barrierVote, voteFormat, registeredEd])
+
+  useEffect(() => { persistForm() }, [persistForm])
+
+  // FE-05: очистка кеша
+  const handleClearCache = () => {
+    setPhone(''); setEmail(''); setTelegramId('')
+    setBarrierVote(''); setVoteFormat(''); setRegisteredEd('')
+    setIsOwner(true); setConsent(false)
+    clearFormData()
+    setFromCache(false)
+  }
 
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) return
@@ -107,6 +141,8 @@ export default function Form() {
       const data = await res.json().catch(() => ({}))
       if (res.ok && data.success) {
         setMessage({ type: 'success', text: data.message || 'Данные приняты' })
+        markSubmitted()
+        setShowNudge(true)
       } else {
         const errorText = typeof data.detail === 'string'
           ? data.detail
@@ -139,6 +175,15 @@ export default function Form() {
     <div className="form-page">
       <h1>Анкета</h1>
       <p className="premise-display">Помещение: {premiseLabel}</p>
+
+      {fromCache && (
+        <div className="form-cache-notice">
+          Данные заполнены из предыдущей анкеты.{' '}
+          <button type="button" className="btn-link" onClick={handleClearCache}>
+            Очистить
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <fieldset>
@@ -252,6 +297,13 @@ export default function Form() {
           )}
         </div>
       )}
+
+      <NudgeModal
+        visible={showNudge}
+        onMap={() => { setShowNudge(false); navigate('/') }}
+        onList={() => { setShowNudge(false); navigate('/premises') }}
+        onClose={() => setShowNudge(false)}
+      />
     </div>
   )
 }

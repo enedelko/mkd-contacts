@@ -195,3 +195,18 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .legend-title { font-weight: 600; }
 .legend-item { display: inline-flex; align-items: center; gap: 4px; }
 .legend-swatch { display: inline-block; width: 14px; height: 14px; border: 1px solid #bdbdbd; border-radius: 2px; }
+/* FE-05: уведомление об автозаполнении */
+.form-cache-notice { margin: 0.5rem 0 0; padding: 0.5rem 0.75rem; background: #e3f2fd; border-radius: 6px; font-size: 0.9rem; color: #1565c0; }
+/* FE-05: Nudge-модал */
+.nudge-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.nudge-dialog { background: #fff; border-radius: 10px; padding: 1.5rem 1.75rem; max-width: 400px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); outline: none; }
+.nudge-title { margin: 0 0 0.5rem; font-size: 1.15rem; }
+.nudge-text { margin: 0 0 1.25rem; font-size: 0.95rem; color: #333; line-height: 1.45; }
+.nudge-actions { display: flex; flex-direction: column; gap: 0.5rem; }
+.nudge-btn { padding: 0.6rem 1rem; font-size: 1rem; border-radius: 6px; cursor: pointer; border: 1px solid transparent; font-family: inherit; }
+.nudge-btn-primary { background: #1976d2; color: #fff; border-color: #1976d2; }
+.nudge-btn-primary:hover { background: #1565c0; }
+.nudge-btn-secondary { background: #fff; color: #1976d2; border-color: #1976d2; }
+.nudge-btn-secondary:hover { background: #e3f2fd; }
+.nudge-btn-close { background: none; color: #666; border: none; font-size: 0.9rem; margin-top: 0.25rem; }
+.nudge-btn-close:hover { color: #333; }
