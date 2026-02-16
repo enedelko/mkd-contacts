@@ -38,6 +38,7 @@ export default function Form() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [errors, setErrors] = useState({})
+  const [admins, setAdmins] = useState([])
 
   useEffect(() => {
     if (!premise && !location.state) {
@@ -66,13 +67,18 @@ export default function Form() {
     e.preventDefault()
     setMessage(null)
     setErrors({})
+    setAdmins([])
     if (!premise) return
     const hasContact = phone.trim() || email.trim() || telegramId.trim()
-    if (!hasContact) {
-      setErrors({ contact: 'Укажите хотя бы один контакт: телефон, email или Telegram' })
+    const hasOssAnswers = !!(barrierVote || voteFormat || registeredEd)
+    if (!hasContact && (!isOwner || !hasOssAnswers)) {
+      const msg = isOwner
+        ? 'Укажите контакт или ответьте на вопросы по предстоящему ОСС'
+        : 'Укажите хотя бы один контакт: телефон, email или Telegram'
+      setErrors({ contact: msg })
       return
     }
-    if (!consent) {
+    if (hasContact && !consent) {
       setErrors({ consent: 'Необходимо согласие на обработку ПДн' })
       return
     }
@@ -94,7 +100,7 @@ export default function Form() {
           barrier_vote: isOwner ? (barrierVote || null) : null,
           vote_format: isOwner ? (voteFormat || null) : null,
           registered_ed: isOwner ? (registeredEd || null) : null,
-          consent_version: '1.0',
+          consent_version: hasContact ? '1.0' : 'IP',
           captcha_token: captchaToken || null,
         }),
       })
@@ -112,6 +118,9 @@ export default function Form() {
           const byField = {}
           data.errors.forEach((err) => { byField[err.field] = err.message })
           setErrors(byField)
+        }
+        if (res.status === 403 && Array.isArray(data.admins)) {
+          setAdmins(data.admins)
         }
         if (res.status === 429) {
           setMessage({ type: 'error', text: 'Превышен лимит отправок. Повторите позже.' })
@@ -145,7 +154,8 @@ export default function Form() {
         </fieldset>
 
         <fieldset>
-          <legend>Контакт (хотя бы одно поле)</legend>
+          <legend>Контакт</legend>
+          {isOwner && <p className="hint">Заполните, если хотите, чтобы с вами можно было связаться. Без контактов голос будет анонимным.</p>}
           <label>
             Телефон:{' '}
             <input
@@ -168,12 +178,19 @@ export default function Form() {
           </label>
           {errors.telegram_id && <span className="field-error">{errors.telegram_id}</span>}
           {errors.contact && <span className="field-error">{errors.contact}</span>}
+          {(phone.trim() || email.trim() || telegramId.trim()) && (
+            <label>
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              Даю согласие на обработку персональных данных. <a href={POLICY_URL} target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a>
+            </label>
+          )}
+          {errors.consent && <span className="field-error">{errors.consent}</span>}
         </fieldset>
 
         {isOwner && (
           <fieldset>
-            <legend>Вопросы ОСС</legend>
-            <p>Одобряю схему размещения шлагбаумов:</p>
+            <legend>Вопросы по предстоящему ОСС</legend>
+            <p>Одобряю <a href="https://t.me/SILVERINFO/4304" target="_blank" rel="noopener noreferrer">схему размещения шлагбаумов</a>:</p>
             <label>
               <input type="radio" name="barrierVote" value="for" checked={barrierVote === 'for'} onChange={() => setBarrierVote('for')} />
               За
@@ -213,12 +230,6 @@ export default function Form() {
           </fieldset>
         )}
 
-        <label>
-          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          Даю согласие на обработку персональных данных. <a href={POLICY_URL} target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a>
-        </label>
-        {errors.consent && <span className="field-error">{errors.consent}</span>}
-
         {TURNSTILE_SITE_KEY && (
           <div className="turnstile-wrap">
             <div className="cf-turnstile" data-sitekey={TURNSTILE_SITE_KEY} data-callback="__mkdTurnstileCallback" />
@@ -232,6 +243,13 @@ export default function Form() {
       {message && (
         <div className={`form-message ${message.type}`} role="alert">
           {message.text}
+          {admins.length > 0 && (
+            <ul className="admin-list">
+              {admins.map((a, i) => (
+                <li key={i}>{a.full_name} ({a.premises})</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

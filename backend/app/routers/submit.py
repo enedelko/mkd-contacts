@@ -62,6 +62,14 @@ def submit(
         return {"success": True, "message": result.get("message", "Данные приняты")}
     if result.get("code") == "CONTACT_CONFLICT":
         raise HTTPException(status_code=409, detail=result["detail"])
+    if result.get("code") == "ANON_VOTE_EXISTS":
+        raise HTTPException(status_code=409, detail=result["detail"])
+    if result.get("code") == "OSS_LOCKED_VALIDATED":
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=403,
+            content={"detail": result["detail"], "admins": result.get("admins", [])},
+        )
     if result.get("code") == "PREMISE_LIMIT_EXCEEDED":
         raise HTTPException(status_code=400, detail=result["detail"])
     if result.get("code") == "PREMISE_NOT_FOUND":

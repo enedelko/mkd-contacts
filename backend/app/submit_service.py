@@ -74,18 +74,29 @@ def submit_questionnaire(
     Обработать анкету: валидация, лимиты, дедупликация, сохранение.
     Возвращает dict: success, message или error с detail/errors/code.
     """
-    if not phone and not email and not telegram_id:
-        return {"success": False, "detail": "Укажите хотя бы один контакт: телефон, email или Telegram", "errors": [{"field": "contact", "message": "Укажите хотя бы один контакт: телефон, email или Telegram"}]}
+    has_contact = bool(phone or email or telegram_id)
+    has_oss = bool(barrier_vote or vote_format or registered_ed)
 
-    ok, err = validate_phone(phone)
-    if not ok:
-        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "phone", "message": err}]}
-    ok, err = validate_email(email)
-    if not ok:
-        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "email", "message": err}]}
-    ok, err = validate_telegram_id(telegram_id)
-    if not ok:
-        return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "telegram_id", "message": err}]}
+    if not has_contact and not has_oss:
+        return {"success": False, "detail": "Укажите контакт или ответьте на вопросы по предстоящему ОСС", "errors": [{"field": "contact", "message": "Укажите контакт или ответьте на вопросы по предстоящему ОСС"}]}
+
+    if consent_version not in ("1.0", "IP"):
+        return {"success": False, "detail": "Некорректная версия согласия"}
+    if has_contact and consent_version != "1.0":
+        return {"success": False, "detail": "Необходимо согласие на обработку ПДн", "errors": [{"field": "consent", "message": "Необходимо согласие на обработку ПДн"}]}
+    if not has_contact and consent_version != "IP":
+        return {"success": False, "detail": "Некорректная версия согласия для анонимной отправки"}
+
+    if has_contact:
+        ok, err = validate_phone(phone)
+        if not ok:
+            return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "phone", "message": err}]}
+        ok, err = validate_email(email)
+        if not ok:
+            return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "email", "message": err}]}
+        ok, err = validate_telegram_id(telegram_id)
+        if not ok:
+            return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "telegram_id", "message": err}]}
 
     if not captcha_verified:
         return {"success": False, "detail": "Необходимо пройти проверку капчи"}
@@ -98,10 +109,18 @@ def submit_questionnaire(
         if _count_pending_on_premise(db, cadastral) >= PENDING_LIMIT_PER_PREMISE:
             return {"success": False, "detail": "Превышен лимит: не более 10 неподтверждённых контактов на помещение", "code": "PREMISE_LIMIT_EXCEEDED"}
 
+        if not has_contact:
+            anon_exists = db.execute(
+                text("SELECT 1 FROM contacts WHERE premise_id = :pid AND phone IS NULL AND email IS NULL AND telegram_id IS NULL AND status IN ('pending','validated')"),
+                {"pid": cadastral},
+            ).fetchone()
+            if anon_exists:
+                return {"success": False, "detail": "Анонимный голос по этому помещению уже зарегистрирован", "code": "ANON_VOTE_EXISTS"}
+
         phone_idx = blind_index_phone(phone) if phone else None
         email_idx = blind_index_email(email) if email else None
         telegram_id_idx = blind_index_telegram_id(telegram_id) if telegram_id else None
-        existing = _find_contact_by_indexes(db, cadastral, phone_idx, email_idx, telegram_id_idx)
+        existing = _find_contact_by_indexes(db, cadastral, phone_idx, email_idx, telegram_id_idx) if has_contact else None
 
         row = {"phone": phone, "email": email, "telegram_id": telegram_id}
         collision_msg = _collision(existing, row, phone_idx, email_idx, telegram_id_idx)
@@ -126,6 +145,23 @@ def submit_questionnaire(
                 )
 
         if existing:
+            contact_status = db.execute(
+                text("SELECT status FROM contacts WHERE id = :cid"),
+                {"cid": existing["id"]},
+            ).scalar()
+
+            if contact_status == "validated" and has_oss:
+                admins = db.execute(
+                    text("SELECT full_name, premises FROM admins ORDER BY created_at")
+                ).fetchall()
+                admin_list = [{"full_name": r[0] or "—", "premises": r[1] or "—"} for r in admins]
+                return {
+                    "success": False,
+                    "detail": "Ваш контакт валидирован. Для изменения ответов по ОСС обратитесь к администраторам.",
+                    "code": "OSS_LOCKED_VALIDATED",
+                    "admins": admin_list,
+                }
+
             same_phone = (existing.get("phone_idx") == phone_idx) or (not phone_idx and not existing.get("has_phone"))
             same_email = (existing.get("email_idx") == email_idx) or (not email_idx and not existing.get("has_email"))
             same_tg = (existing.get("telegram_id_idx") == telegram_id_idx) or (not telegram_id_idx and not existing.get("has_telegram_id"))
