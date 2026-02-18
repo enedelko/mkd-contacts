@@ -86,6 +86,10 @@ docker-compose.override.yml
 # Секреты (мастер-ключ шифрования и т.п.)
 secrets/
 
+# Локальные конфиги деплоя (домен, пути, порты) — не коммитить в публичный репозиторий
+docs/deploy/nginx-mkd-contacts-https.conf
+docs/deploy/06-certbot.md
+
 # Бэкапы БД
 backups/
 

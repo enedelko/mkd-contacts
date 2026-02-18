@@ -149,7 +149,7 @@ async def show_done(msg: Message, state: FSMContext, edit: bool = False):
     vf = user_data.get("vote_format")
     re = user_data.get("registered_in_ed")
     if vf == "electronic":
-        ed_status = "Да" if re == "true" or re is True else "Нет"
+        ed_status = "Да" if (re in ("true", "yes") or re is True) else "Нет"
         lines.append(f'  Регистрация в "Электронном Доме": {ed_status}')
         lines.append(f"  Голосование: Электронно (Электронный Дом)")
     elif vf:

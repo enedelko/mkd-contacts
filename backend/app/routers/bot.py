@@ -198,7 +198,14 @@ def update_answers(body: AnswersBody) -> dict[str, Any]:
 
             if body.registered_in_ed is not None:
                 updates.append("registered_in_ed = :re")
-                params["re"] = body.registered_in_ed
+                # Бот присылает "true"/"false"; в БД и шахматке везде используется yes/no
+                re_val = body.registered_in_ed
+                if re_val in ("true", True):
+                    params["re"] = "yes"
+                elif re_val in ("false", False):
+                    params["re"] = "no"
+                else:
+                    params["re"] = re_val
 
             if updates:
                 updates.append("updated_at = CURRENT_TIMESTAMP")

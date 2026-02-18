@@ -594,7 +594,7 @@ Backend шифрует telegram_user_id (Fernet → `telegram_id`), вычисл
   "phone": "+79991234567"
 }
 ```
-Передаются только изменённые поля. Backend находит все контакты по `telegram_id_idx` (Blind Index) и обновляет.
+Передаются только изменённые поля. Backend находит все контакты по `telegram_id_idx` (Blind Index) и обновляет. Бот присылает `registered_in_ed` как `"true"`/`"false"`; в БД и в ответах API хранится/возвращается `"yes"`/`"no"` для единообразия с веб-формой, импортом и шахматкой (подсчёт «Зарегистрированы в ЭД»).
 * **Response:** 200 OK.
 * **Response (rate limit):** 429 `{"detail": "Rate limit exceeded", "retry_after": 3600}`.
 
@@ -613,7 +613,7 @@ Backend шифрует telegram_user_id (Fernet → `telegram_id`), вычисл
 **Получение данных пользователя:**
 * **Method:** `GET /api/bot/me/data?telegram_user_id={id}`
 Backend находит контакты по `telegram_id_idx` (Blind Index от переданного telegram_user_id).
-* **Response:**
+* **Response:** В БД и в ответе `registered_in_ed` — строка `"yes"` или `"no"` (бот при отображении учитывает и `"yes"`, и `"true"`).
 ```json
 {
   "premises": [
@@ -621,7 +621,7 @@ Backend находит контакты по `telegram_id_idx` (Blind Index от
     { "premise_id": "77:06:...", "display": "Машино-место 12", "short_display": "ММ 12" }
   ],
   "vote_format": "electronic",
-  "registered_in_ed": true,
+  "registered_in_ed": "yes",
   "barrier_vote": "for",
   "phone": "+79991234567"
 }

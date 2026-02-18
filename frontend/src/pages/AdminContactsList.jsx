@@ -14,7 +14,7 @@ const STATUS_OPTIONS = ['pending', 'validated', 'inactive']
 
 const BARRIER_VOTE_LABELS = { for: 'ЗА', against: 'Против', undecided: 'Не определился' }
 const VOTE_FORMAT_LABELS = { electronic: 'Электронно', paper: 'Бумага', undecided: 'Не определился' }
-const REGISTERED_ED_LABELS = { yes: 'Да', no: 'Нет' }
+const REGISTERED_ED_LABELS = { yes: 'Да', no: 'Нет', true: 'Да', false: 'Нет' }
 
 export default function AdminContactsList() {
   const navigate = useNavigate()
