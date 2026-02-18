@@ -4,6 +4,7 @@ All calls use X-Bot-Token header.
 """
 import logging
 from typing import Any
+from urllib.parse import quote
 
 import aiohttp
 
@@ -51,17 +52,26 @@ async def add_premise(telegram_user_id: int, premise_id: str) -> dict[str, Any]:
         "telegram_user_id": str(telegram_user_id),
         "premise_id": premise_id,
     }) as resp:
-        data = await resp.json()
+        try:
+            data = await resp.json()
+        except Exception:
+            data = {}
         data["_status"] = resp.status
         return data
 
 
 async def remove_premise(telegram_user_id: int, premise_id: str) -> dict[str, Any]:
     s = await _get_session()
-    async with s.delete(f"/api/bot/me/premises/{premise_id}", json={
+    # Кадастровый номер содержит ':', в URL путь нужно кодировать
+    path = f"/api/bot/me/premises/{quote(premise_id, safe='')}"
+    async with s.delete(path, json={
         "telegram_user_id": str(telegram_user_id),
+        "premise_id": premise_id,
     }) as resp:
-        data = await resp.json()
+        try:
+            data = await resp.json()
+        except Exception:
+            data = {}
         data["_status"] = resp.status
         return data
 
@@ -71,7 +81,10 @@ async def update_answers(telegram_user_id: int, **kwargs: Any) -> dict[str, Any]
     body: dict[str, Any] = {"telegram_user_id": str(telegram_user_id)}
     body.update(kwargs)
     async with s.patch("/api/bot/me/answers", json=body) as resp:
-        data = await resp.json()
+        try:
+            data = await resp.json()
+        except Exception:
+            data = {}
         data["_status"] = resp.status
         return data
 
@@ -89,6 +102,9 @@ async def forget(telegram_user_id: int) -> dict[str, Any]:
     async with s.delete("/api/bot/me/forget", json={
         "telegram_user_id": str(telegram_user_id),
     }) as resp:
-        data = await resp.json()
+        try:
+            data = await resp.json()
+        except Exception:
+            data = {}
         data["_status"] = resp.status
         return data

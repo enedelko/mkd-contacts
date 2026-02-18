@@ -75,7 +75,8 @@
 
 ```
 IDLE → PREMISES_OVERVIEW → ENTER_PREMISE → [DISAMBIGUATE] → CONFIRM_PREMISE
-     → OFFER_PARKING_STORAGE / OFFER_MORE → VOTE_METHOD → BARRIER_VOTE
+     → OFFER_PARKING_STORAGE / OFFER_MORE → [ENTER_PARKING_INPUT] → CONFIRM_PREMISE / назад
+     → VOTE_METHOD → BARRIER_VOTE
      → CONTACT_MANAGE → [ENTER_PHONE] → DONE
                       → [CONFIRM_DELETE → CONTACT_MANAGE]
 
@@ -193,18 +194,30 @@ IDLE → MY_DATA_VIEW → [CONFIRM_FORGET → IDLE]
   ✓ Квартира 45
 
 У вас есть машиноместо или кладовка в этом доме?
-Для добавления пришлите номер, например: мм 12, кладовка 5a
 ```
 
-Кнопки: `[Нет, продолжить ➜]` `[Убрать помещение]` `[Отмена]`
+Кнопки: `[Добавить ММ/кладовку]` `[Нет, продолжить ➜]` `[Убрать помещение]` `[Отмена]`
 
-- Ввёл текст — BOT-01 resolve:
-  - 1 совпадение — переход в **CONFIRM_PREMISE**
-  - больше 1 — переход в **DISAMBIGUATE**
-  - 0 — «Не найдено. Попробуйте ещё раз», остаёмся в **OFFER_PARKING_STORAGE**
+- Нажал `[Добавить ММ/кладовку]` — переход в **ENTER_PARKING_INPUT** (экран «только ввод»)
+- Ввёл текст (без кнопки) — BOT-01 resolve: 1 совпадение → **CONFIRM_PREMISE**, больше 1 → **DISAMBIGUATE**, 0 — «Не найдено…», остаёмся в **OFFER_PARKING_STORAGE**
 - Нажал `[Нет, продолжить ➜]` — переход в **VOTE_METHOD**
 - Нажал `[Убрать помещение]` — переход в **REMOVE_PREMISE**
 - Нажал `[Отмена]` или `/cancel` — переход в **IDLE**
+
+---
+
+* **ENTER_PARKING_INPUT**
+
+Экран ожидания только ввода номера помещения (без лишних кнопок; только «Отмена»).
+
+```
+Введите номер машиноместа или кладовки, например: мм 12, кладовка 5a
+```
+
+Кнопки: `[Отмена]`
+
+- Ввёл текст — BOT-01 resolve → **CONFIRM_PREMISE** / **DISAMBIGUATE** (0 — «Не найдено. Попробуйте ещё раз», остаёмся в **ENTER_PARKING_INPUT**)
+- Нажал `[Отмена]` — возврат в **OFFER_PARKING_STORAGE** (или в **OFFER_MORE**, если вошли из него)
 
 ---
 
@@ -219,8 +232,9 @@ IDLE → MY_DATA_VIEW → [CONFIRM_FORGET → IDLE]
 Введите номер или нажмите «Продолжить».
 ```
 
-Кнопки: `[Продолжить ➜]` `[Убрать помещение]` `[Отмена]`
+Кнопки: `[Добавить помещение]` `[Продолжить ➜]` `[Убрать помещение]` `[Отмена]`
 
+- Нажал `[Добавить помещение]` — переход в **ENTER_PARKING_INPUT** (сообщение «Введите номер помещения, например: мм 12, кв. 100»)
 - Ввёл текст — BOT-01 resolve (аналогично) → **CONFIRM_PREMISE** / **DISAMBIGUATE**
 - Нажал `[Продолжить ➜]` — переход в **VOTE_METHOD**
 - Нажал `[Убрать помещение]` — переход в **REMOVE_PREMISE**
@@ -246,7 +260,6 @@ IDLE → MY_DATA_VIEW → [CONFIRM_FORGET → IDLE]
 
 ```
 Убрать «ММ 12» из вашего списка?
-Ваши ответы по этому помещению тоже будут удалены.
 ```
 
 Кнопки: `[Да, убрать]` `[Отмена]`
@@ -271,13 +284,13 @@ IDLE → MY_DATA_VIEW → [CONFIRM_FORGET → IDLE]
 Ранее вы отвечали: Электронно, В ЭД не зарегистрированы✎
 ```
 
-Кнопки: `[Планирую установить ЭД]` `[ЭД установили, собственность вижу]` `[На бумажном бюллетене]` `[Не буду голосовать]` + `[Назад]` `[Отмена]`
+Кнопки: `[Планирую установить ЭД]` `[ЭД установлено, собственность видна]` `[На бумажном бюллетене]` `[Не буду голосовать]` + `[Назад]` `[Отмена]`
 
 Если уже есть сохранённый ответ — показываем его («Ранее вы отвечали»)
 Если ответа нет — то же сообщение без строки «Ранее вы отвечали».
 
 - Нажал `[Планирую установить ЭД]` — vote_format=electronic, registered_in_ed=false, POST/PATCH на Backend → переход в **BARRIER_VOTE**
-- Нажал `[ЭД установили, собственность вижу]` — vote_format=electronic, registered_in_ed=true, POST/PATCH на Backend → переход в **BARRIER_VOTE**
+- Нажал `[ЭД установлено, собственность видна]` — vote_format=electronic, registered_in_ed=true, POST/PATCH на Backend → переход в **BARRIER_VOTE**
 - Нажал `[На бумажном бюллетене]` — vote_format=paper, registered_in_ed=false, POST/PATCH на Backend → переход в **BARRIER_VOTE**
 - Нажал `[Не буду голосовать]` — vote_format=abstain, POST/PATCH на Backend → переход в **BARRIER_VOTE**
 - Нажал `[Назад]` — переход в **PREMISES_OVERVIEW**
@@ -319,7 +332,7 @@ https://t.me/SILVERINFO/4304
 https://example.com/policy
 ```
 
-Кнопки: `[Всё верно, сохранить ✓]` `[Исправить телефон]` `[Удалить мои данные из системы]` + `[Назад]`
+Кнопки: `[Всё верно, сохранить ✓]` `[Исправить телефон]` `[Удалить телефон]` + `[Назад]`
 
 Если телефона нет:
 
@@ -599,11 +612,12 @@ Backend шифрует telegram_user_id (Fernet → `telegram_id`), вычисл
 * **Response (rate limit):** 429 `{"detail": "Rate limit exceeded", "retry_after": 3600}`.
 
 **Удаление помещения:**
-* **Method:** `DELETE /api/bot/me/premises/{premise_id}`
-* **Request:**
+* **Method:** `DELETE /api/bot/me/premises/{premise_id}` (premise_id в path — кадастровый номер; в URL кодировать, т.к. содержит `:`).
+* **Request (body — PremiseBody, оба поля обязательны):**
 ```json
 {
-  "telegram_user_id": "123456789"
+  "telegram_user_id": "123456789",
+  "premise_id": "77:02:0015008:5364"
 }
 ```
 * **Response (успех):** 200 OK `{"detail": "Premise removed"}`.

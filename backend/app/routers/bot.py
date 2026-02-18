@@ -261,12 +261,17 @@ def get_my_data(telegram_user_id: str) -> dict[str, Any]:
             {"cid": first["id"]},
         ).fetchone()
 
-        phone_row = db.execute(
-            text("SELECT phone FROM contacts WHERE id = :cid"),
-            {"cid": first["id"]},
-        ).fetchone()
-        phone_enc = phone_row[0] if phone_row else None
-        phone = decrypt(phone_enc) if phone_enc else None
+        # Телефон может быть в любом из контактов пользователя (напр. добавлен через веб в одном, бот создал другой без телефона)
+        contact_ids = [c["id"] for c in contacts]
+        phone = None
+        for cid in contact_ids:
+            phone_row = db.execute(
+                text("SELECT phone FROM contacts WHERE id = :cid AND phone IS NOT NULL AND trim(phone) != ''"),
+                {"cid": cid},
+            ).fetchone()
+            if phone_row and phone_row[0]:
+                phone = decrypt(phone_row[0])
+                break
 
         reg_ed = db.execute(
             text("SELECT registered_in_ed FROM contacts WHERE id = :cid"),

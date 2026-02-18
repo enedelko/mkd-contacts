@@ -46,11 +46,12 @@ def main():
     bot = Bot(token=TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=storage)
 
-    dp.include_router(start.router)
+    # Роутеры с state-специфичными обработчиками (в т.ч. «Отмена» из ENTER_PARKING_INPUT) — раньше start
     dp.include_router(premises.router)
     dp.include_router(survey.router)
     dp.include_router(contact.router)
     dp.include_router(mydata.router)
+    dp.include_router(start.router)
 
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)

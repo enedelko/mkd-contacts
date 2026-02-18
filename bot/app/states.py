@@ -9,6 +9,7 @@ class Survey(StatesGroup):
     DISAMBIGUATE = State()
     CONFIRM_PREMISE = State()
     OFFER_PARKING_STORAGE = State()
+    ENTER_PARKING_INPUT = State()
     OFFER_MORE = State()
     REMOVE_PREMISE = State()
     CONFIRM_REMOVE_PREMISE = State()

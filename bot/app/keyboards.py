@@ -44,14 +44,23 @@ def confirm_premise_kb(premise_id: str) -> InlineKeyboardMarkup:
 
 def offer_parking_storage_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Добавить ММ/кладовку", callback_data="add_parking_input")],
         [InlineKeyboardButton(text="Нет, продолжить \u27a1", callback_data="to_questions")],
         [InlineKeyboardButton(text="Убрать помещение", callback_data="remove_premise")],
         [InlineKeyboardButton(text="Отмена", callback_data="cancel")],
     ])
 
 
+def enter_premise_only_kb() -> InlineKeyboardMarkup:
+    """Клавиатура «только ввод»: одна кнопка Отмена."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Отмена", callback_data="cancel")],
+    ])
+
+
 def offer_more_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Добавить помещение", callback_data="add_more_input")],
         [InlineKeyboardButton(text="Продолжить \u27a1", callback_data="to_questions")],
         [InlineKeyboardButton(text="Убрать помещение", callback_data="remove_premise")],
         [InlineKeyboardButton(text="Отмена", callback_data="cancel")],
@@ -77,7 +86,7 @@ def confirm_remove_premise_kb(premise_id: str) -> InlineKeyboardMarkup:
 def vote_method_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Планирую установить ЭД", callback_data="vote:ed_plan")],
-        [InlineKeyboardButton(text="ЭД установили, собственность вижу", callback_data="vote:ed_ok")],
+        [InlineKeyboardButton(text="ЭД установлено, собственность видна", callback_data="vote:ed_ok")],
         [InlineKeyboardButton(text="На бумажном бюллетене", callback_data="vote:paper")],
         [InlineKeyboardButton(text="Не буду голосовать", callback_data="vote:abstain")],
         [InlineKeyboardButton(text="Назад", callback_data="back"),
@@ -99,7 +108,7 @@ def contact_manage_has_phone_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Всё верно, сохранить \u2713", callback_data="contact_ok")],
         [InlineKeyboardButton(text="Исправить телефон", callback_data="enter_phone")],
-        [InlineKeyboardButton(text="Удалить мои данные из системы", callback_data="delete_phone")],
+        [InlineKeyboardButton(text="Удалить телефон", callback_data="delete_phone")],
         [InlineKeyboardButton(text="Назад", callback_data="back")],
     ])
 

@@ -1,5 +1,5 @@
 """Handlers: PREMISES_OVERVIEW, ENTER_PREMISE, DISAMBIGUATE, CONFIRM_PREMISE,
-OFFER_PARKING_STORAGE, OFFER_MORE, REMOVE_PREMISE, CONFIRM_REMOVE_PREMISE."""
+OFFER_PARKING_STORAGE, ENTER_PARKING_INPUT, OFFER_MORE, REMOVE_PREMISE, CONFIRM_REMOVE_PREMISE."""
 import logging
 
 from aiogram import Router, F
@@ -151,7 +151,6 @@ async def cb_confirm_yes(callback: CallbackQuery, state: FSMContext):
             lines.append(f"  ✓ {p['display']}")
         lines.append("")
         lines.append("У вас есть машиноместо или кладовка в этом доме?")
-        lines.append("Для добавления пришлите номер, например: мм 12, кладовка 5a")
         await callback.message.edit_text("\n".join(lines), reply_markup=kb.offer_parking_storage_kb())
         await state.set_state(Survey.OFFER_PARKING_STORAGE)
     else:
@@ -173,12 +172,66 @@ async def cb_confirm_no(callback: CallbackQuery, state: FSMContext):
 
 # --- OFFER_PARKING_STORAGE ---
 
+@router.callback_query(F.data == "add_parking_input", Survey.OFFER_PARKING_STORAGE)
+async def cb_add_parking_input(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.update_data(return_to_offer="parking")
+    await state.set_state(Survey.ENTER_PARKING_INPUT)
+    await callback.message.edit_text(
+        "Введите номер машиноместа или кладовки, например: мм 12, кладовка 5a",
+        reply_markup=kb.enter_premise_only_kb(),
+    )
+
+
 @router.message(Survey.OFFER_PARKING_STORAGE)
 async def offer_parking_text(message: Message, state: FSMContext):
     await premises_text_input(message, state)
 
 
+# --- ENTER_PARKING_INPUT ---
+
+@router.message(Survey.ENTER_PARKING_INPUT)
+async def enter_parking_input_text(message: Message, state: FSMContext):
+    await premises_text_input(message, state)
+
+
+@router.callback_query(F.data == "cancel", Survey.ENTER_PARKING_INPUT)
+async def cb_cancel_enter_parking_input(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    uid = callback.from_user.id
+    sd = await state.get_data()
+    return_to = sd.get("return_to_offer", "parking")
+    data = await api.get_my_data(uid)
+    premises = data.get("premises", [])
+    await state.update_data(user_premises=premises, user_data=data)
+
+    lines = ["Ваши помещения:"]
+    for p in premises:
+        lines.append(f"  ✓ {p['display']}")
+    lines.append("")
+
+    if return_to == "more":
+        lines.append("Хотите добавить ещё помещение?\nВведите номер или нажмите «Продолжить».")
+        await callback.message.edit_text("\n".join(lines), reply_markup=kb.offer_more_kb())
+        await state.set_state(Survey.OFFER_MORE)
+    else:
+        lines.append("У вас есть машиноместо или кладовка в этом доме?")
+        await callback.message.edit_text("\n".join(lines), reply_markup=kb.offer_parking_storage_kb())
+        await state.set_state(Survey.OFFER_PARKING_STORAGE)
+
+
 # --- OFFER_MORE ---
+
+@router.callback_query(F.data == "add_more_input", Survey.OFFER_MORE)
+async def cb_add_more_input(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.update_data(return_to_offer="more")
+    await state.set_state(Survey.ENTER_PARKING_INPUT)
+    await callback.message.edit_text(
+        "Введите номер помещения, например: мм 12, кв. 100",
+        reply_markup=kb.enter_premise_only_kb(),
+    )
+
 
 @router.message(Survey.OFFER_MORE)
 async def offer_more_text(message: Message, state: FSMContext):
@@ -197,7 +250,7 @@ async def cb_rm_select(callback: CallbackQuery, state: FSMContext):
     label = chosen["short_display"] if chosen else premise_id
     await state.update_data(remove_premise_id=premise_id, remove_premise_label=label)
     await callback.message.edit_text(
-        f"Убрать «{label}» из вашего списка?\nВаши ответы по этому помещению тоже будут удалены.",
+        f"Убрать «{label}» из вашего списка?",
         reply_markup=kb.confirm_remove_premise_kb(premise_id),
     )
     await state.set_state(Survey.CONFIRM_REMOVE_PREMISE)
@@ -217,9 +270,18 @@ async def cb_rm_confirm(callback: CallbackQuery, state: FSMContext):
     premise_id = callback.data.split(":", 1)[1]
     await callback.answer()
     uid = callback.from_user.id
-    result = await api.remove_premise(uid, premise_id)
-    if result.get("_status") == 404:
+    try:
+        result = await api.remove_premise(uid, premise_id)
+    except Exception as e:
+        logger.exception("remove_premise request failed for uid=%s premise_id=%s", uid, premise_id)
+        await callback.message.edit_text("Не удалось выполнить запрос. Попробуйте позже.")
+        await show_premises_overview(callback.message, state, uid)
+        return
+    status = result.get("_status", 0)
+    if status == 404:
         await callback.message.edit_text("Помещение не найдено.")
+    elif status >= 400:
+        await callback.message.edit_text("Не удалось убрать помещение. Попробуйте позже.")
     else:
         await callback.message.edit_text("Помещение убрано.")
     await show_premises_overview(callback.message, state, uid)
