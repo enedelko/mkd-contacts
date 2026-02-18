@@ -24,6 +24,9 @@ JWT_SECRET = _env("JWT_SECRET", "")
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_EXPIRE_SECONDS = int(_env("JWT_ACCESS_EXPIRE_SECONDS", "36000") or "36000")  # по умолчанию 10 ч
 
+# BOT-01..04: shared secret for bot→backend HTTP calls (not the Telegram bot token)
+BOT_API_TOKEN = _env("BOT_API_TOKEN", "")
+
 # CORS (опционально)
 CORS_ORIGINS = _env("CORS_ORIGINS", "*").split(",")
 

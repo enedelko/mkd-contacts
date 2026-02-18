@@ -37,6 +37,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-}
       BLIND_INDEX_PEPPER: ${BLIND_INDEX_PEPPER:-}
       MASTER_KEY_PATH: ${MASTER_KEY_PATH:-}
+      BOT_API_TOKEN: ${BOT_API_TOKEN:-}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -63,6 +64,29 @@ services:
       - backend
     restart: unless-stopped
 
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: mkd-bot
+    environment:
+      TZ: Europe/Moscow
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      BOT_API_TOKEN: ${BOT_API_TOKEN:-}
+      BACKEND_URL: http://backend:8000
+      WEBHOOK_HOST: ${WEBHOOK_HOST:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      SESSION_DB_PATH: /data/sessions.db
+    volumes:
+      - bot_data:/data
+    ports:
+      - "127.0.0.1:8443:8443"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   pgdata:
     # Персистентные данные PostgreSQL (SR-BE01-002)
+  bot_data:
+    # Персистентные сессии бота (SQLite FSM storage)

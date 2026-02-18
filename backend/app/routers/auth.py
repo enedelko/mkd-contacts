@@ -22,21 +22,12 @@ from app.auth_password import (
     verify_password,
 )
 from app.auth_telegram import get_admin_by_telegram_id, verify_telegram_login
+from app.client_ip import get_client_ip
 from app.config import TELEGRAM_BOT_TOKEN
 from app.db import get_db
 from app.jwt_utils import create_access_token, require_admin
 
 logger = logging.getLogger(__name__)
-
-
-def _client_ip(request: Request) -> str | None:
-    """IP клиента (за nginx — X-Forwarded-For / X-Real-IP)."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or None
-    if request.headers.get("x-real-ip"):
-        return request.headers.get("x-real-ip").strip() or None
-    return request.client.host if request.client else None
 
 
 def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str | None, new_value: str | None, user_id: str | None, ip: str | None) -> None:
@@ -112,7 +103,7 @@ def consent(
             ),
             {"v": version, "tid": str(sub)},
         )
-        _audit_log(db, "admin", str(sub), "policy_consent", None, version, str(sub), _client_ip(request))
+        _audit_log(db, "admin", str(sub), "policy_consent", None, version, str(sub), get_client_ip(request))
         db.commit()
     logger.info("ADM-09: Policy consent accepted telegram_id=%s version=%s", sub, version)
     return Response(status_code=204)
@@ -170,7 +161,7 @@ def change_password(
         )
     set_admin_password(sub, new)
     with get_db() as db:
-        _audit_log(db, "admin", str(sub), "password_change", None, "self", str(sub), _client_ip(request))
+        _audit_log(db, "admin", str(sub), "password_change", None, "self", str(sub), get_client_ip(request))
         db.commit()
     return Response(status_code=204)
 

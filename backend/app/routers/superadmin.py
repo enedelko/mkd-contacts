@@ -10,20 +10,11 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.auth_password import hash_password
+from app.client_ip import get_client_ip
 from app.db import get_db
 from app.jwt_utils import require_super_admin_with_consent
 
 logger = logging.getLogger(__name__)
-
-
-def _client_ip(request: Request) -> str | None:
-    """IP клиента (за nginx — X-Forwarded-For / X-Real-IP)."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or None
-    if request.headers.get("x-real-ip"):
-        return request.headers.get("x-real-ip").strip() or None
-    return request.client.host if request.client else None
 
 
 def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str | None, new_value: str | None, user_id: str | None, ip: str | None) -> None:
@@ -106,9 +97,9 @@ def add_admin(
             ),
             {"tid": tid, "role": body.role, "login": login_val, "ph": password_hash, "full_name": full_name, "premises": premises},
         )
-        _audit_log(db, "admin", tid, "insert", None, body.role, payload.get("sub"), _client_ip(request))
+        _audit_log(db, "admin", tid, "insert", None, body.role, payload.get("sub"), get_client_ip(request))
         if password_hash:
-            _audit_log(db, "admin", tid, "password_change", None, "on_create", payload.get("sub"), _client_ip(request))
+            _audit_log(db, "admin", tid, "password_change", None, "on_create", payload.get("sub"), get_client_ip(request))
         db.commit()
     logger.info("ADM-04: Admin added telegram_id=%s by sub=%s", tid, payload.get("sub"))
     return {"ok": True, "telegram_id": tid, "role": body.role}
@@ -169,9 +160,9 @@ def patch_admin(
                 parts.append("full_name")
             if body.premises is not None:
                 parts.append("premises")
-            _audit_log(db, "admin", telegram_id, "update", None, ",".join(parts) if parts else "login,password", payload.get("sub"), _client_ip(request))
+            _audit_log(db, "admin", telegram_id, "update", None, ",".join(parts) if parts else "login,password", payload.get("sub"), get_client_ip(request))
             if body.password is not None and (body.password or "").strip():
-                _audit_log(db, "admin", telegram_id, "password_change", None, "by_superadmin", payload.get("sub"), _client_ip(request))
+                _audit_log(db, "admin", telegram_id, "password_change", None, "by_superadmin", payload.get("sub"), get_client_ip(request))
             db.commit()
     logger.info("ADM-04: Admin patched telegram_id=%s (login/password) by sub=%s", telegram_id, payload.get("sub"))
     return {"ok": True, "telegram_id": telegram_id}
@@ -205,7 +196,105 @@ def delete_admin(
                 raise HTTPException(status_code=400, detail="Cannot remove the last super_administrator")
         role_before = target[0]
         db.execute(text("DELETE FROM admins WHERE telegram_id = :tid"), {"tid": telegram_id})
-        _audit_log(db, "admin", telegram_id, "delete", role_before, None, current_sub, _client_ip(request))
+        _audit_log(db, "admin", telegram_id, "delete", role_before, None, current_sub, get_client_ip(request))
         db.commit()
     logger.info("ADM-04: Admin removed telegram_id=%s by sub=%s", telegram_id, current_sub)
     return {"ok": True, "telegram_id": telegram_id}
+
+
+# --- BOT: premise_type_aliases CRUD ---
+
+class AliasBody(BaseModel):
+    premises_type: str
+    short_name: str
+    alias: str
+
+
+@router.get("/bot-aliases")
+def list_bot_aliases(
+    payload: dict = Depends(require_super_admin_with_consent),
+) -> list[dict[str, Any]]:
+    with get_db() as db:
+        rows = db.execute(
+            text("SELECT id, premises_type, short_name, alias FROM premise_type_aliases ORDER BY premises_type, alias")
+        ).fetchall()
+    return [{"id": r[0], "premises_type": r[1], "short_name": r[2], "alias": r[3]} for r in rows]
+
+
+@router.post("/bot-aliases", status_code=201)
+def add_bot_alias(
+    body: AliasBody,
+    request: Request,
+    payload: dict = Depends(require_super_admin_with_consent),
+) -> dict[str, Any]:
+    alias_lower = body.alias.strip().lower()
+    if not alias_lower:
+        raise HTTPException(status_code=400, detail="Alias must not be empty")
+    with get_db() as db:
+        dup = db.execute(
+            text("SELECT id FROM premise_type_aliases WHERE alias = :a"),
+            {"a": alias_lower},
+        ).fetchone()
+        if dup:
+            raise HTTPException(status_code=409, detail="Alias already exists")
+        db.execute(
+            text(
+                "INSERT INTO premise_type_aliases (premises_type, short_name, alias) "
+                "VALUES (:pt, :sn, :a)"
+            ),
+            {"pt": body.premises_type.strip(), "sn": body.short_name.strip(), "a": alias_lower},
+        )
+        _audit_log(db, "bot_alias", alias_lower, "insert", None, body.premises_type, payload.get("sub"), get_client_ip(request))
+        db.commit()
+
+    from app.bot_premise_resolver import reload_aliases
+    reload_aliases()
+    return {"ok": True, "alias": alias_lower}
+
+
+@router.delete("/bot-aliases/{alias_id}")
+def delete_bot_alias(
+    alias_id: int,
+    request: Request,
+    payload: dict = Depends(require_super_admin_with_consent),
+) -> dict[str, Any]:
+    with get_db() as db:
+        row = db.execute(
+            text("SELECT alias, premises_type FROM premise_type_aliases WHERE id = :id"),
+            {"id": alias_id},
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Alias not found")
+        db.execute(text("DELETE FROM premise_type_aliases WHERE id = :id"), {"id": alias_id})
+        _audit_log(db, "bot_alias", row[0], "delete", row[1], None, payload.get("sub"), get_client_ip(request))
+        db.commit()
+
+    from app.bot_premise_resolver import reload_aliases
+    reload_aliases()
+    return {"ok": True}
+
+
+# --- BOT: unrecognized log ---
+
+@router.get("/bot-unrecognized")
+def list_bot_unrecognized(
+    limit: int = 50,
+    offset: int = 0,
+    payload: dict = Depends(require_super_admin_with_consent),
+) -> dict[str, Any]:
+    with get_db() as db:
+        rows = db.execute(
+            text(
+                "SELECT id, input_text, created_at FROM bot_unrecognized "
+                "ORDER BY created_at DESC LIMIT :lim OFFSET :off"
+            ),
+            {"lim": min(limit, 500), "off": offset},
+        ).fetchall()
+        total = db.execute(text("SELECT COUNT(*) FROM bot_unrecognized")).scalar() or 0
+    return {
+        "items": [
+            {"id": r[0], "input_text": r[1], "created_at": r[2].isoformat() if r[2] else None}
+            for r in rows
+        ],
+        "total": total,
+    }

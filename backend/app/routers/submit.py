@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, Field
 
+from app.client_ip import get_client_ip
 from app.config import SUBMIT_RATE_LIMIT_PER_HOUR
 from app.rate_limit import check_submit_rate_limit
 from app.captcha import verify_turnstile
@@ -40,7 +41,7 @@ def submit(
     FE-04: Принять анкету. Обязательно хотя бы одно из: phone, email, telegram_id.
     Капча проверяется, если задан TURNSTILE_SECRET_KEY.
     """
-    client_ip = request.client.host if request.client else None
+    client_ip = get_client_ip(request)
     allowed, retry_after = check_submit_rate_limit(client_ip or "", SUBMIT_RATE_LIMIT_PER_HOUR)
     if not allowed:
         raise HTTPException(status_code=429, detail="Превышен лимит отправок. Повторите позже.", headers={"Retry-After": str(retry_after)})

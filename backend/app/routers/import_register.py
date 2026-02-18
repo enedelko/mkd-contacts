@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 
+from app.client_ip import get_client_ip
 from app.db import get_db
 from app.import_register import (
     build_contacts_template_xlsx,
@@ -27,20 +28,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-def _client_ip(request: Request) -> str | None:
-    """IP клиента: за nginx — X-Forwarded-For или X-Real-IP, иначе request.client.host."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or None
-    if request.headers.get("x-real-ip"):
-        return request.headers.get("x-real-ip").strip() or None
-    return request.client.host if request.client else None
-
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB (NFR Performance)
 
 
 @router.post("/import/register")
 def import_register(
+    request: Request,
     file: UploadFile = File(...),
     payload: dict = Depends(require_super_admin_with_consent),
 ) -> dict[str, Any]:
@@ -79,7 +72,7 @@ def import_register(
         )
     # LOST-02: return body with expected/detected for client
     try:
-        client_ip = None  # could be request.client.host
+        client_ip = get_client_ip(request)
         report = run_import(rows, client_ip=client_ip)
     except Exception as e:
         logger.exception("Import failed")
@@ -106,6 +99,7 @@ def _audit_log(db, entity_type: str, entity_id: str, action: str, old_value: str
 
 @router.post("/import/contacts")
 def import_contacts(
+    request: Request,
     file: UploadFile = File(...),
     payload: dict = Depends(require_admin_with_consent),
 ) -> dict[str, Any]:
@@ -149,7 +143,7 @@ def import_contacts(
             },
         )
     try:
-        client_ip = None
+        client_ip = get_client_ip(request)
         report = run_import_contacts_only(rows, client_ip=client_ip)
     except Exception as e:
         logger.exception("Contacts import failed")
@@ -185,7 +179,7 @@ def contacts_template(
                 None,
                 json.dumps({"row_count": row_count, "format": "xlsx"}),
                 payload.get("sub"),
-                _client_ip(request),
+                get_client_ip(request),
             )
             db.commit()
 

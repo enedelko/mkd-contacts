@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from sqlalchemy import text
 
+from app.client_ip import get_client_ip
 from app.db import get_db
 from app.jwt_utils import require_admin_with_consent
 from app.crypto import decrypt, encrypt, blind_index_phone, blind_index_email, blind_index_telegram_id
@@ -20,16 +21,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 VALID_STATUSES = ("pending", "validated", "inactive")
-
-
-def _client_ip(request: Request) -> str | None:
-    """IP клиента: за nginx — X-Forwarded-For или X-Real-IP, иначе request.client.host."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or None
-    if request.headers.get("x-real-ip"):
-        return request.headers.get("x-real-ip").strip() or None
-    return request.client.host if request.client else None
 
 
 @router.get("/contacts")
@@ -129,7 +120,7 @@ def list_contacts(
     else:
         eid = "list"
     admin_id = payload.get("sub")
-    client_ip = _client_ip(request)
+    client_ip = get_client_ip(request)
     with get_db() as db2:
         _audit_log(db2, "contact", eid, "select", None, None, admin_id, client_ip)
         db2.commit()
@@ -163,7 +154,7 @@ def get_contact(
 
     # BE-03 / SR-BE03-004: логируем факт чтения одного контакта
     admin_id = payload.get("sub")
-    client_ip = _client_ip(request)
+    client_ip = get_client_ip(request)
     with get_db() as db2:
         _audit_log(db2, "contact", str(contact_id), "select", None, None, admin_id, client_ip)
         db2.commit()
@@ -259,7 +250,7 @@ def create_contact(
                 {"cid": contact_id, "bv": body.barrier_vote, "vf": body.vote_format},
             )
         # BE-03 / SR-BE03-001: логируем INSERT контакта
-        _audit_log(db, "contact", str(contact_id), "insert", None, None, payload.get("sub"), _client_ip(request))
+        _audit_log(db, "contact", str(contact_id), "insert", None, None, payload.get("sub"), get_client_ip(request))
         db.commit()
 
     logger.info("ADM-03: contact created by sub=%s premise_id=%s contact_id=%s", payload.get("sub"), cadastral, contact_id)
@@ -297,7 +288,7 @@ def update_contact(
     if not ok:
         raise HTTPException(status_code=400, detail=err)
 
-    client_ip = _client_ip(request)
+    client_ip = get_client_ip(request)
     admin_id = payload.get("sub")
 
     with get_db() as db:
@@ -385,7 +376,7 @@ def bulk_update_status(
     if len(body.contact_ids) > 200:
         raise HTTPException(status_code=400, detail="Максимум 200 контактов за раз")
 
-    client_ip = _client_ip(request)
+    client_ip = get_client_ip(request)
     admin_id = payload.get("sub")
     updated = 0
 
@@ -425,7 +416,7 @@ def update_contact_status(
     """
     if body.status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail="status must be 'validated' or 'inactive'")
-    client_ip = _client_ip(request)
+    client_ip = get_client_ip(request)
     admin_id = payload.get("sub")
 
     with get_db() as db:
