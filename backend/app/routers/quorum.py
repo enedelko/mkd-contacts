@@ -62,8 +62,32 @@ def get_quorum(building_id: str) -> dict[str, Any]:
             ).fetchone()
         area_voted_for = float(area_for_row[0] or 0)
 
+        # SR-CORE04-007: площадь помещений с хотя бы одним контактом в ЭД (pending/validated)
+        ed_exists = """
+            EXISTS (
+                SELECT 1 FROM contacts c
+                WHERE c.premise_id = p.cadastral_number
+                  AND c.registered_in_ed = 'yes'
+                  AND c.status IN ('pending', 'validated')
+            )
+        """
+        if use_prefix:
+            area_ed_row = db.execute(
+                text(f"""
+                    SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
+                    WHERE starts_with(p.cadastral_number, :bid) AND {ed_exists}
+                """),
+                {"bid": building_id},
+            ).fetchone()
+        else:
+            area_ed_row = db.execute(
+                text(f"SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p WHERE {ed_exists}")
+            ).fetchone()
+        area_registered_ed = float(area_ed_row[0] or 0)
+
     ratio = (area_voted_for / total_area) if total_area > 0 else 0.0
     quorum_reached = ratio >= QUORUM_THRESHOLD
+    ed_ratio = (area_registered_ed / total_area) if total_area > 0 else 0.0
 
     return {
         "total_area": round(total_area, 2),
@@ -71,4 +95,6 @@ def get_quorum(building_id: str) -> dict[str, Any]:
         "ratio": round(ratio, 4),
         "quorum_threshold": round(QUORUM_THRESHOLD, 4),
         "quorum_reached": quorum_reached,
+        "area_registered_ed": round(area_registered_ed, 2),
+        "ed_ratio": round(ed_ratio, 4),
     }

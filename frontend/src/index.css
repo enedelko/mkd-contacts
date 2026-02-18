@@ -177,6 +177,8 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .home-quorum .quorum-result.quorum-reached { color: #2e7d32; }
 /* FE-06: шахматка помещений */
 .chessboard-entrance-stats { margin: 0.75rem 0; font-size: 0.95rem; color: #333; }
+.chessboard-entrance-stats .chessboard-stats-line { margin: 0.25rem 0; }
+.home-quorum .quorum-ed-stats { margin-top: 0.5rem; }
 .chessboard-loading { color: #666; }
 .chessboard-error { color: #c62828; }
 .chessboard-empty { color: #666; }

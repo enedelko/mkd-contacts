@@ -161,6 +161,22 @@ def chessboard(
         ).fetchone()
         area_voted_for = float(area_for_row[0] or 0)
 
+        # SR-FE06-017: площадь помещений подъезда с контактами в ЭД (pending/validated)
+        area_ed_row = db.execute(
+            text("""
+                SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
+                WHERE p.entrance = :entrance
+                AND EXISTS (
+                    SELECT 1 FROM contacts c
+                    WHERE c.premise_id = p.cadastral_number
+                      AND c.registered_in_ed = 'yes'
+                      AND c.status IN ('pending', 'validated')
+                )
+            """),
+            {"entrance": entrance},
+        ).fetchone()
+        area_registered_ed = float(area_ed_row[0] or 0)
+
     # Группируем по этажам
     floors_map: dict[str, list] = {}
     for r in rows:
@@ -201,12 +217,15 @@ def chessboard(
         floors_out.append({"floor": fl, "premises": premises})
 
     ratio = (area_voted_for / total_area) if total_area > 0 else 0.0
+    entrance_ed_ratio = (area_registered_ed / total_area) if total_area > 0 else 0.0
 
     return {
         "entrance": entrance,
         "entrance_area_voted_for": round(area_voted_for, 2),
         "entrance_total_area": round(total_area, 2),
         "entrance_ratio": round(ratio, 4),
+        "entrance_area_registered_ed": round(area_registered_ed, 2),
+        "entrance_ed_ratio": round(entrance_ed_ratio, 4),
         "floors": floors_out,
     }
 

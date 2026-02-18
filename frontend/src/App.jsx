@@ -171,6 +171,13 @@ function Home() {
             <p className={`quorum-result ${quorum.quorum_reached ? 'quorum-reached' : ''}`}>
               {quorum.quorum_reached ? 'Кворум набирается (порог 2/3 достигнут)' : 'Кворум не набирается (порог 2/3 пока не достигнут)'}
             </p>
+            {/* SR-FE06-016: % в Электронном доме по дому */}
+            {quorum.total_area > 0 && typeof quorum.area_registered_ed === 'number' && (
+              <p className="quorum-ed-stats quorum-stats">
+                В Электронном доме: <strong>{quorum.area_registered_ed}</strong> м² из <strong>{quorum.total_area}</strong> м²
+                ({(quorum.ed_ratio * 100).toFixed(1)}%)
+              </p>
+            )}
           </div>
         )}
       </section>
@@ -184,12 +191,20 @@ function Home() {
         prompt="Выберите подъезд для просмотра помещений."
       />
 
-      {/* SR-FE06-004: % площади ЗА над шахматкой */}
+      {/* SR-FE06-004, SR-FE06-017: % площади ЗА и % в ЭД по подъезду над шахматкой */}
       {board && !boardLoading && (
         <div className="chessboard-entrance-stats">
-          Площадь «ЗА» по подъезду: <strong>{board.entrance_area_voted_for}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
-          {board.entrance_total_area > 0 && (
-            <> ({(board.entrance_ratio * 100).toFixed(1)}%)</>
+          <p className="chessboard-stats-line">
+            Площадь «ЗА» по подъезду: <strong>{board.entrance_area_voted_for}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
+            {board.entrance_total_area > 0 && (
+              <> ({(board.entrance_ratio * 100).toFixed(1)}%)</>
+            )}
+          </p>
+          {board.entrance_total_area > 0 && typeof board.entrance_area_registered_ed === 'number' && (
+            <p className="chessboard-stats-line">
+              В Электронном доме по подъезду: <strong>{board.entrance_area_registered_ed}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
+              ({(board.entrance_ed_ratio * 100).toFixed(1)}%)
+            </p>
           )}
         </div>
       )}
