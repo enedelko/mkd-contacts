@@ -90,8 +90,9 @@ async def cb_forget_yes(callback: CallbackQuery, state: FSMContext):
     await api.forget(uid)
     await state.clear()
     await callback.message.edit_text("Все ваши данные удалены.")
-    from app.handlers.start import WELCOME
-    await callback.message.answer(WELCOME, reply_markup=kb.idle_kb())
+    from app.handlers.start import get_welcome_text
+    text = await get_welcome_text()
+    await callback.message.answer(text, reply_markup=kb.idle_kb())
 
 
 @router.callback_query(F.data == "forget_cancel", Survey.CONFIRM_FORGET)

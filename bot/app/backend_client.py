@@ -108,3 +108,18 @@ async def forget(telegram_user_id: int) -> dict[str, Any]:
             data = {}
         data["_status"] = resp.status
         return data
+
+
+async def get_quorum() -> dict[str, Any] | None:
+    """GET /api/buildings/default/quorum. Returns None on error or non-200."""
+    try:
+        s = await _get_session()
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with s.get("/api/buildings/default/quorum", timeout=timeout) as resp:
+            if resp.status != 200:
+                logger.warning("get_quorum %s", resp.status)
+                return None
+            return await resp.json()
+    except Exception as e:
+        logger.warning("get_quorum failed: %s", e)
+        return None

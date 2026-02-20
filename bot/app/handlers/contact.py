@@ -125,8 +125,9 @@ async def enter_phone_text(message: Message, state: FSMContext):
         if text == "/cancel":
             await state.clear()
             await message.answer("Диалог отменён.", reply_markup=ReplyKeyboardRemove())
-            from app.handlers.start import WELCOME
-            await message.answer(WELCOME, reply_markup=kb.idle_kb())
+            from app.handlers.start import get_welcome_text
+            welcome_text = await get_welcome_text()
+            await message.answer(welcome_text, reply_markup=kb.idle_kb())
             return
     if not PHONE_RE.match(text):
         await message.answer("Неверный формат. Введите номер в формате +7XXXXXXXXXX.")

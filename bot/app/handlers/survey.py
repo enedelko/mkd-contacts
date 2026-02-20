@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery, Message
 from app.states import Survey
 from app import backend_client as api
 from app import keyboards as kb
+from app.handlers.start import ED_INSTRUCTION, format_quorum_block
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -36,6 +37,8 @@ async def show_vote_method(msg: Message, state: FSMContext, edit: bool = False):
     text_lines.append("Как вы планируете голосовать на ОСС?")
     text_lines.append("")
     text_lines.append("Рекомендуем установить приложение «Электронный Дом» (mos.ru/ed) и убедиться, что видите там все свои помещения.")
+    text_lines.append("")
+    text_lines.append(ED_INSTRUCTION)
 
     vf = user_data.get("vote_format")
     re = user_data.get("registered_in_ed")
@@ -161,7 +164,15 @@ async def show_done(msg: Message, state: FSMContext, edit: bool = False):
 
     phone = user_data.get("phone")
     lines.append(f"  Телефон: {phone or '—'}")
-    lines.append("\nЕсли что-то изменится — возвращайтесь: /start")
+
+    quorum = await api.get_quorum()
+    if quorum:
+        block = format_quorum_block(quorum)
+        if block:
+            lines.append("")
+            lines.append(block)
+    lines.append("")
+    lines.append("Если что-то изменится — возвращайтесь: /start")
 
     await state.set_state(Survey.DONE)
     text = "\n".join(lines)
