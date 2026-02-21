@@ -14,6 +14,7 @@ from app.client_ip import get_client_ip
 from app.db import get_db
 from app.import_register import (
     build_contacts_template_xlsx,
+    create_watermark,
     get_expected_columns,
     get_expected_columns_contacts_only,
     parse_file,
@@ -163,8 +164,11 @@ def contacts_template(
     ADM-08: Скачать XLSX-шаблон контактов по подъезду. Одна строка на контакт.
     При успешной выдаче запись в аудит-лог (при пустом подъезде — без записи).
     """
+    canary_row = None
+    if payload.get("sub") and entrance.strip():
+        canary_row = create_watermark(payload.get("sub"), entrance)
     try:
-        content, row_count = build_contacts_template_xlsx(entrance)
+        content, row_count = build_contacts_template_xlsx(entrance, canary_row=canary_row)
     except Exception as e:
         logger.exception("Contacts template failed: %s", e)
         raise HTTPException(status_code=503, detail="Template generation failed") from e

@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from app.client_ip import get_client_ip
 from app.db import get_db
+from app.import_register import create_watermark
 from app.jwt_utils import require_admin_with_consent
 from app.crypto import decrypt, encrypt, blind_index_phone, blind_index_email, blind_index_telegram_id
 from app.validators import validate_phone, validate_email, validate_telegram_id
@@ -109,6 +110,56 @@ def list_contacts(
             "vote_format": r[17],
         })
         contact_ids.append(str(r[0]))
+
+    # Canary: подмешать watermark по этому подъезду и админу; при отсутствии записи — создать при первом просмотре списка
+    if entrance and payload.get("sub"):
+        entrance_clean = entrance.strip()
+        with get_db() as db_canary:
+            w = db_canary.execute(
+                text(
+                    "SELECT premise_id, phone, canary_telegram_id, how_to_address, created_at "
+                    "FROM export_watermarks "
+                    "WHERE admin_telegram_id = :aid AND entrance = :e "
+                    "ORDER BY created_at DESC LIMIT 1"
+                ),
+                {"aid": payload.get("sub"), "e": entrance_clean},
+            ).fetchone()
+        if not w:
+            w_dict = create_watermark(payload.get("sub"), entrance_clean)
+            if w_dict:
+                w = (w_dict["premise_id"], w_dict["phone"], w_dict["canary_telegram_id"], w_dict["how_to_address"], w_dict.get("created_at"))
+        if w:
+            with get_db() as db_prem:
+                prem = db_prem.execute(
+                    text(
+                        "SELECT entrance, floor, premises_type, premises_number "
+                        "FROM premises WHERE cadastral_number = :pid"
+                    ),
+                    {"pid": w[0]},
+                ).fetchone()
+            canary_item = {
+                "id": -1,
+                "premise_id": w[0],
+                "is_owner": True,
+                "phone": w[1],
+                "email": None,
+                "telegram_id": w[2],
+                "how_to_address": w[3],
+                "registered_ed": None,
+                "status": "pending",
+                "created_at": w[4].isoformat() if len(w) > 4 and w[4] and hasattr(w[4], "isoformat") else (w[4] if len(w) > 4 and w[4] else None),
+                "updated_at": None,
+                "ip": None,
+                "entrance": prem[0] if prem else None,
+                "floor": prem[1] if prem else None,
+                "premises_type": prem[2] if prem else None,
+                "premises_number": prem[3] if prem else None,
+                "barrier_vote": None,
+                "vote_format": None,
+                "is_canary": True,
+            }
+            items.append(canary_item)
+            items.sort(key=lambda x: (x.get("premises_type") or "", x.get("premises_number") or ""))
 
     # BE-03 / SR-BE03-004: логируем факт просмотра списка контактов (в т.ч. при пустом результате)
     # entity_id в audit_log ограничен 128 символами — при длинном списке пишем list(N)

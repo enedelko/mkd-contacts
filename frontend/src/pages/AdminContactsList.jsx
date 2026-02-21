@@ -90,7 +90,7 @@ export default function AdminContactsList() {
 
   const handleStatusChange = async (contactId, newStatus, e) => {
     e?.stopPropagation()
-    if (!token) return
+    if (!token || contactId == null || contactId === -1) return
     try {
       const res = await fetch(`/api/admin/contacts/${contactId}/status`, {
         method: 'PATCH',
@@ -150,7 +150,7 @@ export default function AdminContactsList() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ contact_ids: [...selected], status: newStatus }),
+        body: JSON.stringify({ contact_ids: [...selected].filter((id) => typeof id === 'number' && id > 0), status: newStatus }),
       })
       const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
       if (redirectConsent) return
@@ -330,7 +330,7 @@ export default function AdminContactsList() {
           <tbody>
             {contacts.map((c, index) => (
               <tr
-                key={c.id}
+                key={c.is_canary ? `canary-${index}` : c.id}
                 className={`status-${c.status} clickable-row row-stripe-${index % 4}`}
                 onClick={() => onRowClick(c.id)}
               >

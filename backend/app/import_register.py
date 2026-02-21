@@ -5,6 +5,7 @@ CORE-01: Импорт реестра помещений и контактов (C
 import csv
 import io
 import logging
+import random
 import re
 from typing import Any
 
@@ -577,6 +578,67 @@ BARRIER_VOTE_DISPLAY = {"for": "ЗА", "against": "Против", "undecided": "
 VOTE_FORMAT_DISPLAY = {"electronic": "Электронно", "paper": "Бумага", "undecided": "Не определился"}
 REGISTERED_ED_DISPLAY = {"yes": "Да", "no": "Нет"}
 
+# Canary: имена-гомографы (латиница/кириллица), выглядят как обычные имена
+CANARY_NAMES = [
+    "Aлeкceй",   # Алексей
+    "Дмитpий",   # Дмитрий
+    "Cеpгей",    # Сергей
+    "Андpей",    # Андрей
+    "Михaил",    # Михаил
+    "Никоlай",   # Николай
+    "Aлeкcандp", # Александр
+    "Евгeний",   # Евгений
+    "Ивaн",      # Иван
+    "Пaвел",     # Павел
+]
+
+
+def create_watermark(admin_telegram_id: str, entrance: str) -> dict[str, Any] | None:
+    """
+    Создать запись в export_watermarks: случайное помещение подъезда, телефон +7 916 XXXXXXX,
+    canary_telegram_id, одно из CANARY_NAMES. Возвращает dict с ключами premise_id, phone,
+    canary_telegram_id, how_to_address для вставки в шаблон и список контактов.
+    """
+    with get_db() as db:
+        premise_row = db.execute(
+            text(
+                "SELECT cadastral_number FROM premises WHERE entrance = :e ORDER BY random() LIMIT 1"
+            ),
+            {"e": entrance.strip()},
+        ).fetchone()
+        if not premise_row:
+            return None
+        premise_id = premise_row[0]
+        phone = "+7916" + "".join(random.choices("0123456789", k=7))
+        canary_telegram_id = str(random.randint(10**7, 10**10 - 1))
+        how_to_address = random.choice(CANARY_NAMES)
+        result = db.execute(
+            text(
+                "INSERT INTO export_watermarks "
+                "(admin_telegram_id, entrance, premise_id, phone, canary_telegram_id, how_to_address) "
+                "VALUES (:aid, :e, :pid, :phone, :tg, :how) "
+                "RETURNING created_at"
+            ),
+            {
+                "aid": admin_telegram_id,
+                "e": entrance.strip(),
+                "pid": premise_id,
+                "phone": phone,
+                "tg": canary_telegram_id,
+                "how": how_to_address,
+            },
+        )
+        created_at_row = result.fetchone()
+        db.commit()
+    created_at = created_at_row[0] if created_at_row else None
+    return {
+        "premise_id": premise_id,
+        "phone": phone,
+        "canary_telegram_id": canary_telegram_id,
+        "how_to_address": how_to_address,
+        "created_at": created_at.isoformat() if created_at else None,
+    }
+
 
 def _telegram_link(telegram_id: str | None, phone: str | None) -> str:
     """SR-ADM08-006: ссылка в Telegram по telegram_id или по телефону (логика как в списке контактов)."""
@@ -618,10 +680,11 @@ def _format_phone_display(phone: str | None) -> str:
     return phone
 
 
-def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
+def build_contacts_template_xlsx(entrance: str, canary_row: dict[str, Any] | None = None) -> tuple[bytes, int]:
     """
     ADM-08: Сформировать XLSX-шаблон контактов по подъезду.
     Одна строка на контакт; при отсутствии контакта — одна строка с пустыми полями контакта.
+    canary_row: опционально dict с premise_id, phone, canary_telegram_id, how_to_address — вставляется как строка по этому помещению.
     Возвращает (содержимое файла, количество строк данных).
     """
     import openpyxl
@@ -664,6 +727,33 @@ def build_contacts_template_xlsx(entrance: str) -> tuple[bytes, int]:
                     is_owner if is_owner is not None else True,
                     bv_display, vf_display, reg_ed_display,
                 ])
+
+    # Canary: вставить строку в блок помещения canary_row["premise_id"]
+    if canary_row:
+        pid = canary_row["premise_id"]
+        insert_idx = -1
+        for i, row in enumerate(rows):
+            if row[0] == pid:
+                insert_idx = i
+        if insert_idx >= 0:
+            cn, pt, pn = rows[insert_idx][0], rows[insert_idx][1], rows[insert_idx][2]
+        else:
+            with get_db() as db2:
+                pr = db2.execute(text("SELECT cadastral_number, premises_type, premises_number FROM premises WHERE cadastral_number = :pid"), {"pid": pid}).fetchone()
+                cn = pr[0] if pr else pid
+                pt = pr[1] if pr else ""
+                pn = pr[2] if pr else ""
+        phone_display = _format_phone_display(canary_row["phone"]) or canary_row["phone"]
+        canary_line = [
+            cn or "", pt or "", pn or "",
+            phone_display, "", canary_row["canary_telegram_id"], "", canary_row["how_to_address"],
+            True, "", "", "",
+        ]
+        if insert_idx >= 0:
+            rows.insert(insert_idx + 1, canary_line)
+        else:
+            rows.append(canary_line)
+
     wb = openpyxl.Workbook()
     ws = wb.active
     if ws is None:
