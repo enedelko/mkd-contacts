@@ -21,6 +21,13 @@ CADASTRAL_RE = re.compile(r"\d{2}:\d{2}:\d{6,7}:\d+")
 TYPE_NUMBER_RE = re.compile(r"^([а-яёa-z/.()-]+)\s*[.:,]?\s*(.+)$", re.IGNORECASE)
 
 
+def _norm_strip_leading_zeros(s: str) -> str:
+    """Strip leading zeros from the numeric prefix so 05b and 5b match."""
+    if not s:
+        return s
+    return re.sub(r"^0+", "", s) or "0"
+
+
 def _load_aliases() -> tuple[dict[str, tuple[str, str]], dict[str, str]]:
     """Load premise_type_aliases from DB. Returns (alias->type+short, type->short)."""
     global _aliases_cache, _short_names_cache
@@ -163,6 +170,41 @@ def resolve(raw_text: str, telegram_id_idx: str | None = None) -> list[dict[str,
             d, sd = _make_display(r[1] or "", r[2] or "", short_names)
             conf = 1.0 if resolved_type else 0.9
             results.append({"premise_id": r[0], "display": d, "short_display": sd, "confidence": conf})
+        return results
+
+    # Fallback (variant A): compare by normalized number when exact/LOWER failed (e.g. Cyrillic vs Latin in DB)
+    with get_db() as db:
+        if resolved_type:
+            candidates = db.execute(
+                sa_text(
+                    "SELECT cadastral_number, premises_type, premises_number FROM premises WHERE premises_type = :pt"
+                ),
+                {"pt": resolved_type},
+            ).fetchall()
+        else:
+            candidates = db.execute(
+                sa_text("SELECT cadastral_number, premises_type, premises_number FROM premises")
+            ).fetchall()
+    def _number_matches(db_pn: str, user_norm: str) -> bool:
+        n = normalize_room_number(db_pn or "")
+        if n == user_norm:
+            return True
+        # 05Б vs 5Б in DB: compare without leading zeros
+        if _norm_strip_leading_zeros(n) == _norm_strip_leading_zeros(user_norm):
+            return True
+        return False
+
+    matches = [
+        (cn, pt, pn)
+        for cn, pt, pn in candidates
+        if _number_matches(pn or "", norm_number)
+    ]
+    if matches:
+        results = []
+        for cn, pt, pn in matches[:5]:
+            d, sd = _make_display(pt or "", pn or "", short_names)
+            conf = 0.95 if resolved_type else 0.9
+            results.append({"premise_id": cn, "display": d, "short_display": sd, "confidence": conf})
         return results
 
     try:

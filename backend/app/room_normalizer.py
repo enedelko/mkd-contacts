@@ -8,8 +8,8 @@ PREFIX_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Кириллица -> латиница (SR-CORE01-021): а->a, б->b, в->b
-CYRILLIC_TO_LATIN = str.maketrans("абвгдежзийклмнопрстуфхцчшщъыьэюя", "abvgdejzijklmnoprstufhzcss_y_eua")
+# Кириллица -> латиница (SR-CORE01-021): только постфиксы А/Б и путаница В/B
+CYRILLIC_TO_LATIN = str.maketrans({"а": "a", "б": "b", "в": "b"})
 
 # Римские I-XXX -> арабские (SR-CORE01-022)
 ROMAN_TO_ARABIC = {
@@ -47,8 +47,11 @@ def normalize_room_number(raw: Optional[str]) -> str:
     # Удалить префиксы (SR-CORE01-020a)
     s = PREFIX_PATTERN.sub("", s)
     # Первое вхождение: либо римские (I-XXX), либо арабские с литерой (SR-CORE01-019)
+    # Цифры и буква могут быть через пробел/дефис (05 Б, 5-Б) — захватываем в одну группу
     roman_pattern = re.compile(r"\b([IVX]+)\b", re.IGNORECASE)
-    arabic_literal_pattern = re.compile(r"\b(\d+[a-zA-Zа-яА-ЯёЁ]?|[a-zA-Zа-яА-ЯёЁ]?\d+)(?:[\s\-]*[a-zA-Zа-яА-ЯёЁ])?\b")
+    arabic_literal_pattern = re.compile(
+        r"\b(\d+(?:[\s\-]*[a-zA-Zа-яА-ЯёЁ])?|[a-zA-Zа-яА-ЯёЁ]?\d+)\b", re.IGNORECASE
+    )
     first_roman = _extract_first_match(s, roman_pattern)
     if first_roman and first_roman.lower() in ROMAN_TO_ARABIC:
         normalized = _roman_to_arabic(first_roman)

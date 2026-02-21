@@ -47,14 +47,20 @@ async def show_premises_overview(msg: Message, state: FSMContext, user_id: int |
 
 
 @router.message(Survey.PREMISES_OVERVIEW)
-async def premises_text_input(message: Message, state: FSMContext):
+async def premises_overview_text(message: Message, state: FSMContext):
+    await premises_text_input(message, state)
+
+
+async def premises_text_input(message: Message, state: FSMContext, *, show_cancel_kb: bool = False):
+    """Общая обработка ввода номера помещения."""
     text = message.text or ""
     if not text.strip():
         return
     uid = message.from_user.id
     matches = await api.resolve_premise(text, str(uid))
     if not matches:
-        await message.answer("Не найдено. Попробуйте ещё раз.")
+        # Всегда показываем кнопку «Отмена» после «Не найдено», чтобы пользователь мог выйти
+        await message.answer("Не найдено. Попробуйте ещё раз.", reply_markup=kb.enter_premise_only_kb())
         return
     if len(matches) == 1:
         m = matches[0]
@@ -190,15 +196,10 @@ async def offer_parking_text(message: Message, state: FSMContext):
 
 # --- ENTER_PARKING_INPUT ---
 
-@router.message(Survey.ENTER_PARKING_INPUT)
-async def enter_parking_input_text(message: Message, state: FSMContext):
-    await premises_text_input(message, state)
 
-
-@router.callback_query(F.data == "cancel", Survey.ENTER_PARKING_INPUT)
-async def cb_cancel_enter_parking_input(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-    uid = callback.from_user.id
+async def _do_cancel_enter_parking_input(target: Message, state: FSMContext, edit: bool = False):
+    """Выход из ввода номера (ENTER_PARKING_INPUT) назад к OFFER_PARKING_STORAGE или OFFER_MORE."""
+    uid = target.chat.id
     sd = await state.get_data()
     return_to = sd.get("return_to_offer", "parking")
     data = await api.get_my_data(uid)
@@ -212,12 +213,33 @@ async def cb_cancel_enter_parking_input(callback: CallbackQuery, state: FSMConte
 
     if return_to == "more":
         lines.append("Хотите добавить ещё помещение?\nВведите номер или нажмите «Продолжить».")
-        await callback.message.edit_text("\n".join(lines), reply_markup=kb.offer_more_kb())
-        await state.set_state(Survey.OFFER_MORE)
+        kb_use = kb.offer_more_kb()
+        next_state = Survey.OFFER_MORE
     else:
         lines.append("У вас есть машиноместо или кладовка в этом доме?")
-        await callback.message.edit_text("\n".join(lines), reply_markup=kb.offer_parking_storage_kb())
-        await state.set_state(Survey.OFFER_PARKING_STORAGE)
+        kb_use = kb.offer_parking_storage_kb()
+        next_state = Survey.OFFER_PARKING_STORAGE
+
+    text = "\n".join(lines)
+    if edit:
+        await target.edit_text(text, reply_markup=kb_use)
+    else:
+        await target.answer(text, reply_markup=kb_use)
+    await state.set_state(next_state)
+
+
+@router.message(Survey.ENTER_PARKING_INPUT)
+async def enter_parking_input_text(message: Message, state: FSMContext):
+    if (message.text or "").strip() == "/cancel":
+        await _do_cancel_enter_parking_input(message, state, edit=False)
+        return
+    await premises_text_input(message, state)
+
+
+@router.callback_query(F.data == "cancel", Survey.ENTER_PARKING_INPUT)
+async def cb_cancel_enter_parking_input(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await _do_cancel_enter_parking_input(callback.message, state, edit=True)
 
 
 # --- OFFER_MORE ---

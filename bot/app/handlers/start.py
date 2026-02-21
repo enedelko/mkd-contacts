@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 WELCOME = (
-    "Этот бот помогает собрать голоса собственников\n"
-    "для предстоящего Общего собрания собственников в ЖК Silver.\n\n"
+    "Этот бот помогает оценить голоса и собрать контакты собственников в ЖК Silver.\n\n"
     "Нам важно понять, набирается ли кворум — 2/3 голосов\n"
     "от общей площади дома.\n\n"
     "Если вы собственник помещения в этом доме — нажмите кнопку ниже."
@@ -126,5 +125,6 @@ async def cb_cancel(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "close")
 async def cb_close(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await state.clear()
-    await callback.message.edit_text("До свидания! /start — чтобы начать заново.")
+    await state.set_state(Survey.IDLE)
+    text = await get_welcome_text()
+    await callback.message.edit_text(text, reply_markup=kb.idle_kb())
