@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 PHONE_RE = re.compile(r"^\+?[0-9\s\-()]{7,20}$")
-POLICY_URL = "https://example.com/policy"
+POLICY_URL = "https://jksilver.ru/policy"
 
 
 async def show_contact_manage(msg: Message, state: FSMContext, edit: bool = False):
