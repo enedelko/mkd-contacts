@@ -1,0 +1,10 @@
+# Минимальный конфиг для /usr/local/bin/mkd-backup-dump на ПРОМ-сервере.
+# Скопируйте в /etc/mkd-backup.conf и укажите путь к приложению.
+# Секретов здесь нет — только путь и имена пользователя/БД.
+
+# Путь к каталогу приложения (где docker-compose.yml и .env)
+MKDBACKUP_APP_PATH=/home/enedelko/mkd-contacts
+
+# Имя пользователя и БД PostgreSQL (дефолты: mkd, mkd_contacts)
+POSTGRES_USER=mkd
+POSTGRES_DB=mkd_contacts

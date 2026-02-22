@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Обёртка для бэкапа БД: запускается от имени владельца приложения (sudo -u appuser),
+# читает минимальный конфиг (путь к приложению, POSTGRES_USER, POSTGRES_DB) и выполняет pg_dump.
+# Установка на ПРОМ: cp scripts/remote/mkd-backup-dump /usr/local/bin/ && chmod 755 /usr/local/bin/mkd-backup-dump
+# Конфиг: /etc/mkd-backup.conf (см. mkd-backup.conf.example)
+
+set -e
+
+CONFIG_FILE="${MKDBACKUP_CONF:-/etc/mkd-backup.conf}"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  echo "Ошибка: конфиг не найден: $CONFIG_FILE" >&2
+  exit 1
+fi
+
+# shellcheck source=/dev/null
+. "$CONFIG_FILE"
+APP_PATH="${MKDBACKUP_APP_PATH:?Задайте MKDBACKUP_APP_PATH в $CONFIG_FILE}"
+POSTGRES_USER="${POSTGRES_USER:-mkd}"
+POSTGRES_DB="${POSTGRES_DB:-mkd_contacts}"
+
+cd "$APP_PATH" || exit 1
+exec docker compose exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"
