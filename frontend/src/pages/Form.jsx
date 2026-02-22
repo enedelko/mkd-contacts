@@ -36,6 +36,7 @@ export default function Form() {
   const [voteFormat, setVoteFormat] = useState('')
   const [registeredEd, setRegisteredEd] = useState('')
   const [consent, setConsent] = useState(false)
+  const [consentIP, setConsentIP] = useState(false)
   const [captchaToken, setCaptchaToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
@@ -75,7 +76,7 @@ export default function Form() {
   const handleClearCache = () => {
     setPhone(''); setEmail(''); setTelegramId('')
     setBarrierVote(''); setVoteFormat(''); setRegisteredEd('')
-    setIsOwner(true); setConsent(false)
+    setIsOwner(true); setConsent(false); setConsentIP(false)
     clearFormData()
     setFromCache(false)
   }
@@ -105,15 +106,17 @@ export default function Form() {
     if (!premise) return
     const hasContact = phone.trim() || email.trim() || telegramId.trim()
     const hasOssAnswers = !!(barrierVote || voteFormat || registeredEd)
-    if (!hasContact && (!isOwner || !hasOssAnswers)) {
-      const msg = isOwner
-        ? 'Укажите контакт или ответьте на вопросы по предстоящему ОСС'
-        : 'Укажите хотя бы один контакт: телефон, email или Telegram'
-      setErrors({ contact: msg })
+    const canSubmitNoContactAsOwner = isOwner && hasOssAnswers
+    if (!hasContact && isOwner && !canSubmitNoContactAsOwner) {
+      setErrors({ contact: 'Укажите контакт или ответьте на вопросы по предстоящему ОСС' })
       return
     }
     if (hasContact && !consent) {
       setErrors({ consent: 'Необходимо согласие на обработку ПДн' })
+      return
+    }
+    if (!hasContact && !consentIP) {
+      setErrors({ consentIP: 'Необходимо согласие на обработку IP' })
       return
     }
     if (TURNSTILE_SITE_KEY && !captchaToken) {
@@ -226,10 +229,17 @@ export default function Form() {
           {(phone.trim() || email.trim() || telegramId.trim()) && (
             <label>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              Я даю согласие на обработку моих данных (IP-адрес, а также контакты в случае их заполнения) администраторам системы для защиты от флуда и координации ОСС. С <a href={POLICY_URL} target="_blank" rel="noopener noreferrer">Политикой</a> ознакомлен.
+              Я даю согласие на обработку моих контактных данных (телефон, мессенджер, e-mail — в случае их заполнения) администраторам системы для организации и подготовки Общих собраний собственников в ЖК Silver. С <a href={POLICY_URL} target="_blank" rel="noopener noreferrer">Политикой</a> ознакомлен(а).
             </label>
           )}
           {errors.consent && <span className="field-error">{errors.consent}</span>}
+          {!(phone.trim() || email.trim() || telegramId.trim()) && (
+            <label className="consent-ip-label">
+              <input type="checkbox" checked={consentIP} onChange={(e) => setConsentIP(e.target.checked)} />
+              Я даю согласие на сохранение моего IP-адреса для защиты от массовой отправки анкет злоумышленниками. С <a href={POLICY_URL} target="_blank" rel="noopener noreferrer">Политикой</a> ознакомлен(а).
+            </label>
+          )}
+          {errors.consentIP && <span className="field-error">{errors.consentIP}</span>}
         </fieldset>
 
         {isOwner && (

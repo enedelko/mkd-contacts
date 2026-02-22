@@ -16,6 +16,7 @@ class Survey(StatesGroup):
     VOTE_METHOD = State()
     BARRIER_VOTE = State()
     CONTACT_MANAGE = State()
+    CONTACT_CONSENT = State()
     ENTER_PHONE = State()
     CONFIRM_DELETE = State()
     DONE = State()

@@ -125,6 +125,14 @@ def contact_manage_no_phone_kb() -> InlineKeyboardMarkup:
     ])
 
 
+def consent_agree_decline_kb() -> InlineKeyboardMarkup:
+    """Шаг согласия: Согласен / Не согласен."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Согласен", callback_data="consent_agree")],
+        [InlineKeyboardButton(text="Не согласен", callback_data="consent_decline")],
+    ])
+
+
 def enter_phone_reply_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text="\U0001f4f1 Поделиться контактом", request_contact=True)]],
