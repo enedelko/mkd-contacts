@@ -80,9 +80,9 @@ def submit_questionnaire(
     if not has_contact and not has_oss:
         return {"success": False, "detail": "Укажите контакт или ответьте на вопросы по предстоящему ОСС", "errors": [{"field": "contact", "message": "Укажите контакт или ответьте на вопросы по предстоящему ОСС"}]}
 
-    if consent_version not in ("1.0", "IP"):
+    if consent_version not in ("1.1", "IP"):
         return {"success": False, "detail": "Некорректная версия согласия"}
-    if has_contact and consent_version != "1.0":
+    if has_contact and consent_version != "1.1":
         return {"success": False, "detail": "Необходимо согласие на обработку ПДн", "errors": [{"field": "consent", "message": "Необходимо согласие на обработку ПДн"}]}
     if not has_contact and consent_version != "IP":
         return {"success": False, "detail": "Некорректная версия согласия для анонимной отправки"}

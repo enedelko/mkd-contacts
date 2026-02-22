@@ -134,7 +134,7 @@ export default function Form() {
           barrier_vote: isOwner ? (barrierVote || null) : null,
           vote_format: isOwner ? (voteFormat || null) : null,
           registered_ed: isOwner ? (registeredEd || null) : null,
-          consent_version: hasContact ? '1.0' : 'IP',
+          consent_version: hasContact ? '1.1' : 'IP',
           captcha_token: captchaToken || null,
         }),
       })
@@ -226,7 +226,7 @@ export default function Form() {
           {(phone.trim() || email.trim() || telegramId.trim()) && (
             <label>
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              Даю согласие на обработку персональных данных. <a href={POLICY_URL} target="_blank" rel="noopener noreferrer">Политика конфиденциальности</a>
+              Я даю согласие на обработку моих данных (IP-адрес, а также контакты в случае их заполнения) администраторам системы для защиты от флуда и координации ОСС. С <a href={POLICY_URL} target="_blank" rel="noopener noreferrer">Политикой</a> ознакомлен.
             </label>
           )}
           {errors.consent && <span className="field-error">{errors.consent}</span>}

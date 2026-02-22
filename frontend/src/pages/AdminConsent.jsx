@@ -52,7 +52,7 @@ export default function AdminConsent() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ consent_version: '1.0' }),
+      body: JSON.stringify({ consent_version: '1.1' }),
     })
       .then((res) => {
         if (res.ok) {

@@ -114,7 +114,7 @@ def add_premise(body: PremiseBody) -> dict[str, Any]:
             text(
                 "INSERT INTO contacts (premise_id, is_owner, telegram_id, telegram_id_idx, "
                 "consent_version, status, source) "
-                "VALUES (:pid, true, :tg, :tg_idx, '1.0', 'pending', 'telegram')"
+                "VALUES (:pid, true, :tg, :tg_idx, '1.1', 'pending', 'telegram')"
             ),
             {"pid": body.premise_id, "tg": tg_enc, "tg_idx": tg_idx},
         )
