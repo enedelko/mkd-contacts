@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.auth_bot import require_bot_token
+from app.auth_telegram import get_admin_by_telegram_id
 from app.bot_premise_resolver import resolve as resolve_premise
 from app.crypto import (
     blind_index_phone,
@@ -285,6 +286,23 @@ def get_my_data(telegram_user_id: str) -> dict[str, Any]:
         "barrier_vote": oss[1] if oss else None,
         "phone": phone,
     }
+
+
+@router.get("/me/role")
+def get_my_role(telegram_user_id: str) -> dict[str, Any]:
+    """Роль пользователя в белом списке админов (для бота: проверка суперадмина)."""
+    admin = get_admin_by_telegram_id(telegram_user_id)
+    if not admin:
+        return {"role": None}
+    return {"role": admin["role"]}
+
+
+@router.get("/admins-telegram-ids")
+def get_admins_telegram_ids() -> dict[str, Any]:
+    """Список telegram_id всех администраторов (для рассылки сообщений админам из бота)."""
+    with get_db() as db:
+        rows = db.execute(text("SELECT telegram_id FROM admins")).fetchall()
+    return {"telegram_ids": [str(r[0]) for r in rows]}
 
 
 @router.delete("/me/forget")

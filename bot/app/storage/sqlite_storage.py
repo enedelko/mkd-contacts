@@ -32,6 +32,11 @@ class SQLiteStorage(BaseStorage):
                 "  updated_at REAL NOT NULL"
                 ")"
             )
+            await self._db.execute(
+                "CREATE TABLE IF NOT EXISTS broadcast_recipients ("
+                "  chat_id INTEGER PRIMARY KEY"
+                ")"
+            )
             await self._db.commit()
         return self._db
 
@@ -109,3 +114,19 @@ class SQLiteStorage(BaseStorage):
             count = cur.rowcount
         await db.commit()
         return count or 0
+
+    async def add_broadcast_recipient(self, chat_id: int) -> None:
+        """Добавить chat_id в список получателей рассылки (при /start или первом взаимодействии)."""
+        db = await self._ensure_db()
+        await db.execute(
+            "INSERT OR IGNORE INTO broadcast_recipients (chat_id) VALUES (?)",
+            (chat_id,),
+        )
+        await db.commit()
+
+    async def get_all_broadcast_chat_ids(self) -> list[int]:
+        """Список всех chat_id для рассылки суперадмином."""
+        db = await self._ensure_db()
+        async with db.execute("SELECT chat_id FROM broadcast_recipients") as cur:
+            rows = await cur.fetchall()
+        return [r[0] for r in rows]

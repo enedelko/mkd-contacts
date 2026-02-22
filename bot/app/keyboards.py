@@ -2,12 +2,16 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 
-def idle_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
+def idle_kb(show_broadcast: bool = False) -> InlineKeyboardMarkup:
+    rows = [
         [InlineKeyboardButton(text="Я собственник", callback_data="owner")],
         [InlineKeyboardButton(text="Мои данные", callback_data="mydata")],
+        [InlineKeyboardButton(text="Написать админам", callback_data="to_admins")],
         [InlineKeyboardButton(text="Помощь", callback_data="help")],
-    ])
+    ]
+    if show_broadcast:
+        rows.insert(-1, [InlineKeyboardButton(text="Рассылка", callback_data="broadcast")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def premises_overview_new_kb() -> InlineKeyboardMarkup:

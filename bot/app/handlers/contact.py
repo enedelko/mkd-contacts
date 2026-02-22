@@ -126,8 +126,11 @@ async def enter_phone_text(message: Message, state: FSMContext):
             await state.clear()
             await message.answer("Диалог отменён.", reply_markup=ReplyKeyboardRemove())
             from app.handlers.start import get_welcome_text
+            from app import backend_client as api
             welcome_text = await get_welcome_text()
-            await message.answer(welcome_text, reply_markup=kb.idle_kb())
+            role_data = await api.get_my_role(message.from_user.id)
+            show_broadcast = role_data.get("role") == "super_administrator"
+            await message.answer(welcome_text, reply_markup=kb.idle_kb(show_broadcast=show_broadcast))
             return
     if not PHONE_RE.match(text):
         await message.answer("Неверный формат. Введите номер в формате +7XXXXXXXXXX.")

@@ -21,3 +21,5 @@ class Survey(StatesGroup):
     DONE = State()
     MY_DATA_VIEW = State()
     CONFIRM_FORGET = State()
+    BROADCAST_WAIT_TEXT = State()
+    TO_ADMINS_WAIT_TEXT = State()

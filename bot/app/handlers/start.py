@@ -72,8 +72,13 @@ HELP = (
 @router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
+    if hasattr(state.storage, "add_broadcast_recipient") and message.chat.id:
+        await state.storage.add_broadcast_recipient(message.chat.id)
+    role_data = await api.get_my_role(message.from_user.id)
+    show_broadcast = role_data.get("role") == "super_administrator"
+    logger.info("cmd_start user_id=%s role=%s show_broadcast=%s", message.from_user.id, role_data.get("role"), show_broadcast)
     text = await get_welcome_text()
-    await message.answer(text, reply_markup=kb.idle_kb())
+    await message.answer(text, reply_markup=kb.idle_kb(show_broadcast=show_broadcast))
 
 
 @router.message(Command("help"))
@@ -84,7 +89,9 @@ async def cmd_help(message: Message):
 @router.message(Command("cancel"))
 async def cmd_cancel(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("Диалог отменён.", reply_markup=kb.idle_kb())
+    role_data = await api.get_my_role(message.from_user.id)
+    show_broadcast = role_data.get("role") == "super_administrator"
+    await message.answer("Диалог отменён.", reply_markup=kb.idle_kb(show_broadcast=show_broadcast))
 
 
 @router.message(Command("mydata"))
@@ -117,14 +124,18 @@ async def cb_help(callback: CallbackQuery):
 async def cb_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
+    role_data = await api.get_my_role(callback.from_user.id)
+    show_broadcast = role_data.get("role") == "super_administrator"
     await callback.message.edit_text("Диалог отменён.")
     text = await get_welcome_text()
-    await callback.message.answer(text, reply_markup=kb.idle_kb())
+    await callback.message.answer(text, reply_markup=kb.idle_kb(show_broadcast=show_broadcast))
 
 
 @router.callback_query(F.data == "close")
 async def cb_close(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.set_state(Survey.IDLE)
+    role_data = await api.get_my_role(callback.from_user.id)
+    show_broadcast = role_data.get("role") == "super_administrator"
     text = await get_welcome_text()
-    await callback.message.edit_text(text, reply_markup=kb.idle_kb())
+    await callback.message.edit_text(text, reply_markup=kb.idle_kb(show_broadcast=show_broadcast))

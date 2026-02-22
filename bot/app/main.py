@@ -19,7 +19,7 @@ from app.config import (
     SESSION_TTL_SECONDS,
 )
 from app.storage.sqlite_storage import SQLiteStorage
-from app.handlers import start, premises, survey, contact, mydata
+from app.handlers import start, premises, survey, contact, mydata, notifications
 from app import backend_client
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -47,6 +47,7 @@ def main():
     dp = Dispatcher(storage=storage)
 
     # Роутеры с state-специфичными обработчиками (в т.ч. «Отмена» из ENTER_PARKING_INPUT) — раньше start
+    dp.include_router(notifications.router)
     dp.include_router(premises.router)
     dp.include_router(survey.router)
     dp.include_router(contact.router)

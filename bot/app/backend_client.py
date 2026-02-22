@@ -110,6 +110,36 @@ async def forget(telegram_user_id: int) -> dict[str, Any]:
         return data
 
 
+async def get_my_role(telegram_user_id: int) -> dict[str, Any]:
+    """GET /api/bot/me/role. Returns { role: 'super_administrator'|'administrator'|None }."""
+    try:
+        s = await _get_session()
+        async with s.get("/api/bot/me/role", params={"telegram_user_id": str(telegram_user_id)}) as resp:
+            if resp.status != 200:
+                logger.warning("get_my_role status=%s body=%s", resp.status, await resp.text())
+                return {"role": None}
+            data = await resp.json()
+            logger.info("get_my_role user_id=%s role=%s", telegram_user_id, data.get("role"))
+            return data
+    except Exception as e:
+        logger.warning("get_my_role failed: %s", e)
+        return {"role": None}
+
+
+async def get_admins_telegram_ids() -> list[str]:
+    """GET /api/bot/admins-telegram-ids. Returns list of admin telegram_ids for messaging."""
+    try:
+        s = await _get_session()
+        async with s.get("/api/bot/admins-telegram-ids") as resp:
+            if resp.status != 200:
+                return []
+            data = await resp.json()
+            return data.get("telegram_ids") or []
+    except Exception as e:
+        logger.warning("get_admins_telegram_ids failed: %s", e)
+        return []
+
+
 async def get_quorum() -> dict[str, Any] | None:
     """GET /api/buildings/default/quorum. Returns None on error or non-200."""
     try:
