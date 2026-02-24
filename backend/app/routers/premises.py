@@ -110,13 +110,13 @@ def chessboard(
                     p.premises_number,
                     p.floor,
                     p.area,
-                    -- кол-во активных контактов (pending + validated)
-                    COUNT(DISTINCT c.id) FILTER (WHERE c.status IN ('pending', 'validated'))  AS cnt_active,
+                    -- кол-во активных собственников (pending + validated; только они голосуют)
+                    COUNT(DISTINCT c.id) FILTER (WHERE c.status IN ('pending', 'validated') AND c.is_owner = true)  AS cnt_active,
                     -- кол-во валидированных (на будущее)
                     COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'validated')                AS cnt_validated,
-                    -- кол-во контактов с barrier_vote = 'for'
+                    -- кол-во собственников с barrier_vote = 'for'
                     COUNT(DISTINCT c.id) FILTER (
-                        WHERE c.status IN ('pending', 'validated') AND o.barrier_vote = 'for'
+                        WHERE c.status IN ('pending', 'validated') AND c.is_owner = true AND o.barrier_vote = 'for'
                     )                                                                          AS cnt_vote_for,
                     -- есть ли хотя бы один собственник, зарегистрированный в Электронном доме
                     BOOL_OR(c.registered_in_ed = 'yes')
@@ -154,7 +154,7 @@ def chessboard(
                 AND EXISTS (
                     SELECT 1 FROM contacts c
                     JOIN oss_voting o ON o.contact_id = c.id
-                    WHERE c.premise_id = p.cadastral_number AND o.barrier_vote = 'for'
+                    WHERE c.premise_id = p.cadastral_number AND c.is_owner = true AND o.barrier_vote = 'for'
                 )
             """),
             {"entrance": entrance},
@@ -181,9 +181,9 @@ def chessboard(
     floors_map: dict[str, list] = {}
     for r in rows:
         cn, pt, pn, fl, area, cnt_active, cnt_validated, cnt_vote_for, has_reg_ed, has_tg, has_email = r
-        # contact_state — раскраска по позиции ОСС:
-        #   full        — все активные контакты голосуют «ЗА»
-        #   vote_for    — хотя бы один контакт голосует «ЗА» (но не все)
+        # contact_state — раскраска по позиции ОСС (vote_for/full только по собственникам):
+        #   full        — все активные собственники голосуют «ЗА»
+        #   vote_for    — хотя бы один собственник голосует «ЗА» (но не все)
         #   registered  — хотя бы один собственник зарегистрирован в Электронном доме
         #   none        — нет информации
         if cnt_active > 0 and cnt_vote_for > 0 and cnt_vote_for >= cnt_active:
