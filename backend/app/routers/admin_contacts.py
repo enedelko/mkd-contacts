@@ -3,6 +3,7 @@ ADM-03: POST /api/admin/contacts — добавление контакта ад�
 VAL-01: GET /api/admin/contacts — список контактов; PATCH …/status — смена статуса.
 """
 import logging
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -22,6 +23,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 VALID_STATUSES = ("pending", "validated", "inactive")
+
+
+def _contact_list_sort_key(item: dict[str, Any]) -> tuple[str, int, str]:
+    """Ключ сортировки списка контактов: тип помещения, числовая часть номера (натуральный порядок), строка номера."""
+    pt = (item.get("premises_type") or "").strip()
+    pn = (item.get("premises_number") or "").strip()
+    num_part = re.sub(r"[^0-9].*", "", pn) if pn else ""
+    num = int(num_part) if num_part.isdigit() else 999999
+    return (pt, num, pn)
 
 
 @router.get("/contacts")
@@ -78,10 +88,7 @@ def list_contacts(
                 f"FROM contacts c "
                 f"LEFT JOIN premises p ON p.cadastral_number = c.premise_id "
                 f"LEFT JOIN oss_voting o ON o.contact_id = c.id "
-                f"WHERE {where} "
-                f"ORDER BY p.premises_type NULLS LAST, "
-                f"(NULLIF(TRIM(REGEXP_REPLACE(COALESCE(p.premises_number, ''), '[^0-9].*', '')), '')::int) NULLS LAST, "
-                f"p.premises_number NULLS LAST, c.id DESC"
+                f"WHERE {where}"
             ),
             params,
         ).fetchall()
@@ -171,7 +178,8 @@ def list_contacts(
                     "is_canary": True,
                 }
                 items.append(canary_item)
-                items.sort(key=lambda x: (x.get("premises_type") or "", x.get("premises_number") or ""))
+
+    items.sort(key=_contact_list_sort_key)
 
     # BE-03 / SR-BE03-004: логируем факт просмотра списка контактов (в т.ч. при пустом результате)
     # entity_id в audit_log ограничен 128 символами — при длинном списке пишем list(N)
