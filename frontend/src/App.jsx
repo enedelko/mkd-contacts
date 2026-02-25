@@ -135,7 +135,7 @@ function Home() {
       hasEntrances: true,
     }
     if (token) {
-      navigate('/admin/contacts', { state: stateData })
+      navigate('/admin/contacts/list', { state: { entrance, premises_number: premise.premises_number } })
     } else {
       navigate('/form', { state: stateData })
     }

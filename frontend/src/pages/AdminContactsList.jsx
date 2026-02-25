@@ -30,7 +30,9 @@ export default function AdminContactsList() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const [filterPremisesNumber, setFilterPremisesNumber] = useState('')
+  const [filterPremisesNumber, setFilterPremisesNumber] = useState(
+    location.state?.premises_number ?? ''
+  )
   const [filterStatus, setFilterStatus] = useState('')
   const [filterIp, setFilterIp] = useState('')
   const [filterFrom, setFilterFrom] = useState('')

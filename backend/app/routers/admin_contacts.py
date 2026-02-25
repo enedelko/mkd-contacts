@@ -111,7 +111,9 @@ def list_contacts(
         })
         contact_ids.append(str(r[0]))
 
-    # Canary: подмешать watermark по этому подъезду и админу; при отсутствии записи — создать при первом просмотре списка
+    # Canary: подмешать watermark по этому подъезду и админу; при отсутствии записи — создать при первом просмотре списка.
+    # Канареечный контакт подчиняется тем же фильтрам, что и остальные записи (premises_number, premise_id, status;
+    # при активных ip/from_date/to_date не показываем — у канарейки нет ip/created_at).
     if entrance and payload.get("sub"):
         entrance_clean = entrance.strip()
         with get_db() as db_canary:
@@ -137,29 +139,39 @@ def list_contacts(
                     ),
                     {"pid": w[0]},
                 ).fetchone()
-            canary_item = {
-                "id": -1,
-                "premise_id": w[0],
-                "is_owner": True,
-                "phone": w[1],
-                "email": None,
-                "telegram_id": w[2],
-                "how_to_address": w[3],
-                "registered_ed": None,
-                "status": "pending",
-                "created_at": w[4].isoformat() if len(w) > 4 and w[4] and hasattr(w[4], "isoformat") else (w[4] if len(w) > 4 and w[4] else None),
-                "updated_at": None,
-                "ip": None,
-                "entrance": prem[0] if prem else None,
-                "floor": prem[1] if prem else None,
-                "premises_type": prem[2] if prem else None,
-                "premises_number": prem[3] if prem else None,
-                "barrier_vote": None,
-                "vote_format": None,
-                "is_canary": True,
-            }
-            items.append(canary_item)
-            items.sort(key=lambda x: (x.get("premises_type") or "", x.get("premises_number") or ""))
+            show_canary = True
+            if premises_number and (prem is None or (prem[3] or "").strip() != premises_number.strip()):
+                show_canary = False
+            if premise_id and w[0] != premise_id:
+                show_canary = False
+            if status and status != "pending":
+                show_canary = False
+            if ip or from_date or to_date:
+                show_canary = False
+            if show_canary:
+                canary_item = {
+                    "id": -1,
+                    "premise_id": w[0],
+                    "is_owner": True,
+                    "phone": w[1],
+                    "email": None,
+                    "telegram_id": w[2],
+                    "how_to_address": w[3],
+                    "registered_ed": None,
+                    "status": "pending",
+                    "created_at": w[4].isoformat() if len(w) > 4 and w[4] and hasattr(w[4], "isoformat") else (w[4] if len(w) > 4 and w[4] else None),
+                    "updated_at": None,
+                    "ip": None,
+                    "entrance": prem[0] if prem else None,
+                    "floor": prem[1] if prem else None,
+                    "premises_type": prem[2] if prem else None,
+                    "premises_number": prem[3] if prem else None,
+                    "barrier_vote": None,
+                    "vote_format": None,
+                    "is_canary": True,
+                }
+                items.append(canary_item)
+                items.sort(key=lambda x: (x.get("premises_type") or "", x.get("premises_number") or ""))
 
     # BE-03 / SR-BE03-004: логируем факт просмотра списка контактов (в т.ч. при пустом результате)
     # entity_id в audit_log ограничен 128 символами — при длинном списке пишем list(N)

@@ -61,6 +61,8 @@ export default function AdminContacts() {
   // --- Данные для отображения помещения в режиме редактирования ---
   const [editPremiseLabel, setEditPremiseLabel] = useState('')
   const [editPremiseId, setEditPremiseId] = useState('')
+  const [editEntrance, setEditEntrance] = useState('')
+  const [editPremisesNumber, setEditPremisesNumber] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [filterLoading, setFilterLoading] = useState(false)
@@ -102,6 +104,8 @@ export default function AdminContacts() {
         setVoteFormat(data.vote_format || '')
         setRegisteredEd(data.registered_ed || '')
         setEditPremiseId(data.premise_id || '')
+        setEditEntrance(data.entrance ?? '')
+        setEditPremisesNumber(data.premises_number ?? '')
         const parts = []
         if (data.entrance) parts.push(entranceInlineLabel(data.entrance))
         if (data.floor) parts.push(`этаж ${data.floor}`)
@@ -232,7 +236,8 @@ export default function AdminContacts() {
 
       if (res.ok) {
         if (isEdit) {
-          setMessage({ type: 'success', text: 'Контакт обновлён' })
+          navigate('/admin/contacts/list', { state: { entrance: editEntrance, premises_number: editPremisesNumber } })
+          return
         } else {
           setMessage({ type: 'success', text: `Контакт создан (id: ${data.contact_id}, статус: ${data.status})` })
           setIsOwner(true); setPhone(''); setEmail(''); setTelegramId(''); setHowToAddress('')
@@ -273,6 +278,18 @@ export default function AdminContacts() {
           ? `Помещение: ${editPremiseLabel}`
           : 'Ввод контакта от имени администратора. Статус «валидирован» устанавливается автоматически.'}
       </p>
+
+      {isEdit && (
+        <p>
+          <button
+            type="button"
+            className="btn-link"
+            onClick={() => navigate('/admin/contacts/list', { state: { entrance: editEntrance, premises_number: editPremisesNumber } })}
+          >
+            Назад к списку
+          </button>
+        </p>
+      )}
 
       {/* --- Каскадный выбор помещения (только при создании) --- */}
       {!isEdit && (
@@ -442,11 +459,6 @@ export default function AdminContacts() {
         <button type="submit" disabled={loading}>
           {loading ? 'Сохранение…' : isEdit ? 'Сохранить изменения' : 'Сохранить контакт'}
         </button>
-        {isEdit && (
-          <button type="button" style={{ marginLeft: '0.5rem' }} onClick={() => navigate('/admin/contacts/list', { state: { entrance: location.state?.fromEntrance } })}>
-            Назад к списку
-          </button>
-        )}
       </form>
 
       {message && (
