@@ -86,7 +86,7 @@ def list_audit(
         "FROM audit_log a "
         "LEFT JOIN contacts c ON a.entity_type = 'contact' "
         "AND a.entity_id ~ '^\\d+$' "
-        "AND c.id = CAST(a.entity_id AS INTEGER) "
+        "AND c.id = CAST(CASE WHEN a.entity_id ~ '^\\d+$' THEN a.entity_id END AS INTEGER) "
         "LEFT JOIN premises p ON p.cadastral_number = c.premise_id "
         "LEFT JOIN admins adm ON adm.telegram_id = a.user_id "
         f"WHERE {where} ORDER BY a.id DESC LIMIT :lim OFFSET :off"

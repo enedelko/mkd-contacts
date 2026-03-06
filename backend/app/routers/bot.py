@@ -236,7 +236,8 @@ def update_answers(body: AnswersBody) -> dict[str, Any]:
                         {"cid": c["id"], "vf": vf, "bv": bv},
                     )
 
-        _audit_log(db, "contact", tg_idx, "bot_answers_update", None, None, body.telegram_user_id, None)
+        for c in contacts:
+            _audit_log(db, "contact", str(c["id"]), "bot_answers_update", None, None, body.telegram_user_id, None)
         db.commit()
     return {"detail": "Answers updated"}
 
@@ -332,6 +333,7 @@ def forget(body: ForgetBody) -> dict[str, Any]:
                 {"cid": c["id"]},
             )
 
-        _audit_log(db, "contact", tg_idx, "forget", None, None, body.telegram_user_id, None)
+        for c in contacts:
+            _audit_log(db, "contact", str(c["id"]), "forget", None, None, body.telegram_user_id, None)
         db.commit()
     return {"detail": "All data deleted"}
