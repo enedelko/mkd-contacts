@@ -118,9 +118,12 @@ def chessboard(
                     COUNT(DISTINCT c.id) FILTER (
                         WHERE c.status IN ('pending', 'validated') AND c.is_owner = true AND o.barrier_vote = 'for'
                     )                                                                          AS cnt_vote_for,
-                    -- есть ли хотя бы один собственник, зарегистрированный в Электронном доме
-                    BOOL_OR(c.registered_in_ed = 'yes')
-                        FILTER (WHERE c.status IN ('pending', 'validated'))                    AS has_registered_ed,
+                    -- есть ли хотя бы один собственник с подтверждённой собственностью в ЭД
+                    BOOL_OR(c.registered_in_ed = 'owner')
+                        FILTER (WHERE c.status IN ('pending', 'validated'))                    AS has_owner_ed,
+                    -- есть ли хотя бы один собственник с аккаунтом ЭД без подтверждённой собственности
+                    BOOL_OR(c.registered_in_ed = 'account')
+                        FILTER (WHERE c.status IN ('pending', 'validated'))                    AS has_account_ed,
                     -- есть ли telegram_id или phone среди активных
                     BOOL_OR(
                         (c.telegram_id IS NOT NULL AND c.telegram_id != '')
@@ -162,6 +165,7 @@ def chessboard(
         area_voted_for = float(area_for_row[0] or 0)
 
         # SR-FE06-017: площадь помещений подъезда с контактами в ЭД (pending/validated)
+        # В новой модели учитываем только помещения, где есть контакт с registered_in_ed = 'owner'
         area_ed_row = db.execute(
             text("""
                 SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
@@ -169,7 +173,7 @@ def chessboard(
                 AND EXISTS (
                     SELECT 1 FROM contacts c
                     WHERE c.premise_id = p.cadastral_number
-                      AND c.registered_in_ed = 'yes'
+                      AND c.registered_in_ed = 'owner'
                       AND c.status IN ('pending', 'validated')
                 )
             """),
@@ -180,18 +184,34 @@ def chessboard(
     # Группируем по этажам
     floors_map: dict[str, list] = {}
     for r in rows:
-        cn, pt, pn, fl, area, cnt_active, cnt_validated, cnt_vote_for, has_reg_ed, has_tg, has_email = r
-        # contact_state — раскраска по позиции ОСС (vote_for/full только по собственникам):
+        (
+            cn,
+            pt,
+            pn,
+            fl,
+            area,
+            cnt_active,
+            cnt_validated,
+            cnt_vote_for,
+            has_owner_ed,
+            has_account_ed,
+            has_tg,
+            has_email,
+        ) = r
+        # contact_state — раскраска по позиции ОСС и ЭД:
         #   full        — все активные собственники голосуют «ЗА»
         #   vote_for    — хотя бы один собственник голосует «ЗА» (но не все)
-        #   registered  — хотя бы один собственник зарегистрирован в Электронном доме
+        #   registered  — хотя бы один собственник с подтверждённой собственностью в ЭД (owner), без голосов «ЗА»
+        #   ed_account  — только аккаунт ЭД без подтверждённой собственности (account), без голосов «ЗА»
         #   none        — нет информации
         if cnt_active > 0 and cnt_vote_for > 0 and cnt_vote_for >= cnt_active:
             state = "full"
         elif cnt_vote_for and cnt_vote_for > 0:
             state = "vote_for"
-        elif bool(has_reg_ed):
+        elif bool(has_owner_ed):
             state = "registered"
+        elif bool(has_account_ed):
+            state = "ed_account"
         else:
             state = "none"
 

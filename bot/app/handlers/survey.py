@@ -46,7 +46,13 @@ async def show_vote_method(msg: Message, state: FSMContext, edit: bool = False):
         label = VOTE_LABELS.get(vf, vf)
         ed_note = ""
         if vf == "electronic":
-            ed_note = ", В ЭД зарегистрированы" if re else ", В ЭД не зарегистрированы"
+            # Поддержка нового enum none/account/owner + старых значений
+            if re in ("owner", "yes", "true") or re is True:
+                ed_note = ', статус в ЭД: "собственность подтверждена"'
+            elif re in ("account",):
+                ed_note = ', статус в ЭД: "требуется подтвердить собственность"'
+            else:
+                ed_note = ', в ЭД не зарегистрированы'
         text_lines.append(f"\nРанее вы отвечали: {label}{ed_note}✎")
 
     await state.set_state(Survey.VOTE_METHOD)
@@ -65,11 +71,17 @@ async def cb_vote(callback: CallbackQuery, state: FSMContext):
 
     kwargs = {}
     if choice == "ed_plan":
-        kwargs = {"vote_format": "electronic", "registered_in_ed": "false"}
+        # Планирую установить ЭД: формат электронный, статуса в ЭД пока нет
+        kwargs = {"vote_format": "electronic", "registered_in_ed": "none"}
+    elif choice == "ed_confirm":
+        # ЭД уже установлен, но собственность ещё не подтверждена
+        kwargs = {"vote_format": "electronic", "registered_in_ed": "account"}
     elif choice == "ed_ok":
-        kwargs = {"vote_format": "electronic", "registered_in_ed": "true"}
+        # ЭД установлен, собственность подтверждена и видна
+        kwargs = {"vote_format": "electronic", "registered_in_ed": "owner"}
     elif choice == "paper":
-        kwargs = {"vote_format": "paper", "registered_in_ed": "false"}
+        # Голосование на бумаге — считаем, что для кворума по ЭД это помещение не участвует
+        kwargs = {"vote_format": "paper", "registered_in_ed": "none"}
     elif choice == "abstain":
         kwargs = {"vote_format": "abstain"}
 
@@ -82,6 +94,16 @@ async def cb_vote(callback: CallbackQuery, state: FSMContext):
     ud = sd.get("user_data", {})
     ud.update(kwargs)
     await state.update_data(user_data=ud)
+
+    # Для варианта "ЭД установлен, требуется подтвердить собственность" дополнительно подсветить пользователю шаг 5 инструкции
+    if choice == "ed_confirm":
+        emphasize_text = (
+            "Чтобы вы могли участвовать в ОСС через «Электронный дом», необходимо подтвердить собственность.\n"
+            "Обратите внимание на шаг 5 инструкции:\n"
+            "5. Если данные не подтверждены или статус собственника не отображается: "
+            "«Настроить» → «Редактировать» → включить переключатель «В собственности» → «Сохранить».\n Нажмите /help для полной инструкции"
+        )
+        await callback.message.answer(emphasize_text)
 
     await show_barrier_vote(callback.message, state, edit=True)
 
@@ -152,9 +174,14 @@ async def show_done(msg: Message, state: FSMContext, edit: bool = False):
     vf = user_data.get("vote_format")
     re = user_data.get("registered_in_ed")
     if vf == "electronic":
-        ed_status = "Да" if (re in ("true", "yes") or re is True) else "Нет"
-        lines.append(f'  Регистрация в "Электронном Доме": {ed_status}')
-        lines.append(f"  Голосование: Электронно (Электронный Дом)")
+        # Новый enum none/account/owner + обратная совместимость
+        if re in ("owner", "yes", "true") or re is True:
+            lines.append('  Регистрация в "Электронном Доме": Собственность подтверждена')
+        elif re in ("account",):
+            lines.append('  Регистрация в "Электронном Доме": ЭД установлен, требуется подтвердить собственность')
+        else:
+            lines.append('  Регистрация в "Электронном Доме": Нет / не пользуется ЭД')
+        lines.append("  Голосование: Электронно (Электронный Дом)")
     elif vf:
         lines.append(f"  Голосование: {VOTE_LABELS.get(vf, vf)}")
 

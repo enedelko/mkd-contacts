@@ -75,7 +75,7 @@ erDiagram
       string phone_idx
       string email_idx
       string telegram_id_idx
-      boolean registered_in_ed
+      string registered_in_ed
       timestamp created_at
       timestamp updated_at
       string ip

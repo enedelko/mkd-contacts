@@ -301,14 +301,15 @@ IDLE → TO_ADMINS_WAIT_TEXT → [текст] → доставка всем ад
 Ранее вы отвечали: Электронно, В ЭД не зарегистрированы✎
 ```
 
-Кнопки: `[Планирую установить ЭД]` `[ЭД установлено, собственность видна]` `[На бумажном бюллетене]` `[Не буду голосовать]` + `[Назад]` `[Отмена]`
+Кнопки: `[Планирую установить ЭД]` `[ЭД установлен, требуется подтвердить собственность]` `[ЭД установлено, собственность видна]` `[На бумажном бюллетене]` `[Не буду голосовать]` + `[Назад]` `[Отмена]`
 
 Если уже есть сохранённый ответ — показываем его («Ранее вы отвечали»)
 Если ответа нет — то же сообщение без строки «Ранее вы отвечали».
 
-- Нажал `[Планирую установить ЭД]` — vote_format=electronic, registered_in_ed=false, POST/PATCH на Backend → переход в **BARRIER_VOTE**
-- Нажал `[ЭД установлено, собственность видна]` — vote_format=electronic, registered_in_ed=true, POST/PATCH на Backend → переход в **BARRIER_VOTE**
-- Нажал `[На бумажном бюллетене]` — vote_format=paper, registered_in_ed=false, POST/PATCH на Backend → переход в **BARRIER_VOTE**
+- Нажал `[Планирую установить ЭД]` — vote_format=electronic, registered_in_ed=none, POST/PATCH на Backend → переход в **BARRIER_VOTE**
+- Нажал `[ЭД установлен, требуется подтвердить собственность]` — vote_format=electronic, registered_in_ed=account, POST/PATCH на Backend → бот дополнительно отправляет сообщение с акцентом на необходимость подтвердить собственность для участия в ОСС (шаг 5 инструкции) → переход в **BARRIER_VOTE**
+- Нажал `[ЭД установлено, собственность видна]` — vote_format=electronic, registered_in_ed=owner, POST/PATCH на Backend → переход в **BARRIER_VOTE**
+- Нажал `[На бумажном бюллетене]` — vote_format=paper, registered_in_ed=none, POST/PATCH на Backend → переход в **BARRIER_VOTE**
 - Нажал `[Не буду голосовать]` — vote_format=abstain, POST/PATCH на Backend → переход в **BARRIER_VOTE**
 - Нажал `[Назад]` — переход в **PREMISES_OVERVIEW**
 - Нажал `[Отмена]` или `/cancel` — переход в **IDLE**
@@ -530,7 +531,7 @@ https://t.me/SILVERINFO/4304
 5. **Инкрементальное сохранение.** Данные сохраняются на Backend после каждого ответа, если они изменились: CONFIRM_PREMISE создаёт/привязывает контакт, VOTE_METHOD сохраняет формат голосования, BARRIER_VOTE — позицию по шлагбаумам, ENTER_PHONE/CONFIRM_DELETE — телефон. Если пользователь прерывает поток на любом шаге (`[Отмена]`), ранее сохранённые ответы остаются в БД. Это ожидаемое поведение.
 6. **Вопросы (VOTE_METHOD, BARRIER_VOTE) и телефон (CONTACT_MANAGE) показывают текущий ответ** — возвращающийся пользователь видит, что отвечал раньше, и может изменить или оставить.
 7. **Согласие с Политикой** вынесено в отдельный шаг **CONTACT_CONSENT**. Показывается только когда у пользователя ещё нет телефона и он нажимает «Добавить телефон» или вводит номер на шаге CONTACT_MANAGE. Две кнопки: «Согласен» / «Не согласен». При «Не согласен» — возврат на CONTACT_MANAGE. Текст согласия — форма 1 из приложения к Политике (обработка контактных данных для координации ОСС в ЖК Silver, без IP и без «защиты от флуда»). На шаге CONTACT_MANAGE при уже сохранённом телефоне текст согласия не повторяется.
-8. **EDOM и формат голосования объединены** в один шаг VOTE_METHOD. Вариант «Планирую установить ЭД» (registered_in_ed=false, vote_format=electronic) осознанно стимулирует регистрацию в Электронном Доме.
+8. **EDOM и формат голосования объединены** в один шаг VOTE_METHOD. Три варианта по ЭД: «Планирую установить ЭД» (registered_in_ed=none), «ЭД установлен, требуется подтвердить собственность» (registered_in_ed=account), «ЭД установлено, собственность видна» (registered_in_ed=owner). Вариант «account» дополнительно подсвечивает пользователю шаг 5 инструкции (подтверждение собственности для участия в ОСС).
 9. **barrier_vote и vote_format** в модели данных хранятся per-contact (per-premise). При сохранении бот дублирует ответы во все записи контактов по помещениям собственника.
 10. **Три уровня управления данными:** (a) CONFIRM_DELETE — удаляет только телефон; (b) REMOVE_PREMISE → CONFIRM_REMOVE_PREMISE — `status='inactive'` одного контакта, обнуление ПДн, аудит `action: premise_removed`; (c) CONFIRM_FORGET — `status='inactive'` всех контактов, обнуление ПДн + Blind Index, аудит `action: forget`. Поле `deleted_at` не используется — различие через `action` в аудит-логе.
 11. **Короткие названия типов в кнопках.** Бот использует `short_name` из таблицы `premise_type_aliases`: «Кв. 45», «ММ 12», «Ап. 45», «Клад. 5a», «БКТ 3». Полное название показывается в CONFIRM_PREMISE.
@@ -664,12 +665,12 @@ Backend шифрует telegram_user_id (Fernet → `telegram_id`), вычисл
 {
   "telegram_user_id": "123456789",
   "vote_format": "electronic",
-  "registered_in_ed": true,
+  "registered_in_ed": "owner",
   "barrier_vote": "for",
   "phone": "+79991234567"
 }
 ```
-Передаются только изменённые поля. Backend находит все контакты по `telegram_id_idx` (Blind Index) и обновляет. Бот присылает `registered_in_ed` как `"true"`/`"false"`; в БД и в ответах API хранится/возвращается `"yes"`/`"no"` для единообразия с веб-формой, импортом и шахматкой (подсчёт «Зарегистрированы в ЭД»).
+Передаются только изменённые поля. Backend находит все контакты по `telegram_id_idx` (Blind Index) и обновляет. Бот присылает `registered_in_ed` как `"none"` | `"account"` | `"owner"` (расширенный enum). Для обратной совместимости Backend также принимает старые значения `"true"`/`"false"`/`"yes"`/`"no"` и маппит их в `"owner"`/`"none"`.
 * **Response:** 200 OK.
 * **Response (rate limit):** 429 `{"detail": "Rate limit exceeded", "retry_after": 3600}`.
 
@@ -689,7 +690,7 @@ Backend шифрует telegram_user_id (Fernet → `telegram_id`), вычисл
 **Получение данных пользователя:**
 * **Method:** `GET /api/bot/me/data?telegram_user_id={id}`
 Backend находит контакты по `telegram_id_idx` (Blind Index от переданного telegram_user_id).
-* **Response:** В БД и в ответе `registered_in_ed` — строка `"yes"` или `"no"` (бот при отображении учитывает и `"yes"`, и `"true"`).
+* **Response:** В БД и в ответе `registered_in_ed` — строка `"none"` | `"account"` | `"owner"` (расширенный enum статуса ЭД). Для обратной совместимости бот при отображении также учитывает старые значения `"yes"`/`"true"` (как `owner`).
 ```json
 {
   "premises": [
@@ -697,7 +698,7 @@ Backend находит контакты по `telegram_id_idx` (Blind Index от
     { "premise_id": "77:06:...", "display": "Машино-место 12", "short_display": "ММ 12" }
   ],
   "vote_format": "electronic",
-  "registered_in_ed": "yes",
+  "registered_in_ed": "owner",
   "barrier_vote": "for",
   "phone": "+79991234567"
 }

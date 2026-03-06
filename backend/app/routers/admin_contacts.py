@@ -251,7 +251,10 @@ class AdminContactBody(BaseModel):
     how_to_address: str | None = Field(None, description="Обращение (как обращаться к жителю/собственнику)")
     barrier_vote: str | None = Field(None, description="for | against | undecided")
     vote_format: str | None = Field(None, description="electronic | paper | undecided")
-    registered_ed: str | None = Field(None, description="yes | no")
+    registered_ed: str | None = Field(
+        None,
+        description="none | account | owner (расширенный статус ЭД)",
+    )
 
 
 def _resolve_premise_cadastral(premise_id: str, db) -> str | None:
@@ -336,7 +339,10 @@ class AdminContactUpdateBody(BaseModel):
     how_to_address: str | None = Field(None, description="Обращение (как обращаться к жителю/собственнику)")
     barrier_vote: str | None = Field(None, description="for | against | undecided")
     vote_format: str | None = Field(None, description="electronic | paper | undecided")
-    registered_ed: str | None = Field(None, description="yes | no")
+    registered_ed: str | None = Field(
+        None,
+        description="none | account | owner (расширенный статус ЭД)",
+    )
 
 
 @router.put("/contacts/{contact_id}")

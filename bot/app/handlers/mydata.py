@@ -39,7 +39,13 @@ async def show_my_data(msg: Message, state: FSMContext, user_id: int | None = No
     vf = data.get("vote_format")
     re_ed = data.get("registered_in_ed")
     if vf == "electronic":
-        ed_note = " (зарегистрированы в ЭД)" if (re_ed in ("true", "yes") or re_ed is True) else " (планируют установить ЭД)"
+        # Учитываем новый enum none/account/owner и старые значения
+        if re_ed in ("owner", "yes", "true") or re_ed is True:
+            ed_note = ' (собственность подтверждена в ЭД)'
+        elif re_ed in ("account",):
+            ed_note = ' (ЭД установлен, требуется подтвердить собственность)'
+        else:
+            ed_note = ' (в ЭД не зарегистрированы)'
         lines.append(f"  Голосование: Электронно{ed_note}")
     elif vf:
         lines.append(f"  Голосование: {VOTE_LABELS.get(vf, vf)}")

@@ -63,11 +63,12 @@ def get_quorum(building_id: str) -> dict[str, Any]:
         area_voted_for = float(area_for_row[0] or 0)
 
         # SR-CORE04-007: площадь помещений с хотя бы одним контактом в ЭД (pending/validated)
+        # В новой модели учитываем только помещения, где есть контакт с registered_in_ed = 'owner'
         ed_exists = """
             EXISTS (
                 SELECT 1 FROM contacts c
                 WHERE c.premise_id = p.cadastral_number
-                  AND c.registered_in_ed = 'yes'
+                  AND c.registered_in_ed = 'owner'
                   AND c.status IN ('pending', 'validated')
             )
         """

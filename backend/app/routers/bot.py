@@ -199,14 +199,20 @@ def update_answers(body: AnswersBody) -> dict[str, Any]:
 
             if body.registered_in_ed is not None:
                 updates.append("registered_in_ed = :re")
-                # Бот присылает "true"/"false"; в БД и шахматке везде используется yes/no
+                # Бот присылает значения расширенного enum none|account|owner.
+                # Для обратной совместимости поддерживаем также true/false/yes/no/1/0.
                 re_val = body.registered_in_ed
-                if re_val in ("true", True):
-                    params["re"] = "yes"
-                elif re_val in ("false", False):
-                    params["re"] = "no"
-                else:
+                if re_val in ("none", "account", "owner"):
                     params["re"] = re_val
+                else:
+                    s = str(re_val).strip().lower()
+                    if s in ("yes", "да", "true", "1"):
+                        params["re"] = "owner"
+                    elif s in ("no", "нет", "false", "0"):
+                        params["re"] = "none"
+                    else:
+                        # Некорректное значение — не трогаем поле registered_in_ed
+                        updates.pop()  # убрать registered_in_ed = :re
 
             if updates:
                 updates.append("updated_at = CURRENT_TIMESTAMP")

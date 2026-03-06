@@ -98,6 +98,22 @@ def submit_questionnaire(
         if not ok:
             return {"success": False, "detail": "Ошибка валидации", "errors": [{"field": "telegram_id", "message": err}]}
 
+    # Валидация значения registered_ed (расширенный enum none|account|owner)
+    if registered_ed is not None:
+        if registered_ed not in ("none", "account", "owner"):
+            # Обратная совместимость: старые yes/no/true/false/1/0 маппим в owner/none
+            s = str(registered_ed).strip().lower()
+            if s in ("yes", "да", "true", "1"):
+                registered_ed = "owner"
+            elif s in ("no", "нет", "false", "0"):
+                registered_ed = "none"
+            else:
+                return {
+                    "success": False,
+                    "detail": "Некорректное значение статуса ЭД",
+                    "errors": [{"field": "registered_ed", "message": "Допустимые значения: none | account | owner"}],
+                }
+
     if not captcha_verified:
         return {"success": False, "detail": "Необходимо пройти проверку капчи"}
 

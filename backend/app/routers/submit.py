@@ -27,7 +27,10 @@ class SubmitBody(BaseModel):
     telegram_id: str | None = None
     barrier_vote: str | None = Field(None, description="for | against | undecided")
     vote_format: str | None = Field(None, description="electronic | paper | undecided")
-    registered_ed: str | None = Field(None, description="yes | no")
+    registered_ed: str | None = Field(
+        None,
+        description="none | account | owner (расширенный статус ЭД)",
+    )
     consent_version: str | None = None
     captcha_token: str | None = Field(None, alias="captcha_token")
 

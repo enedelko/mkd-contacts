@@ -14,7 +14,16 @@ const STATUS_OPTIONS = ['pending', 'validated', 'inactive']
 
 const BARRIER_VOTE_LABELS = { for: 'ЗА', against: 'Против', undecided: 'Не определился' }
 const VOTE_FORMAT_LABELS = { electronic: 'Электронно', paper: 'Бумага', undecided: 'Не определился' }
-const REGISTERED_ED_LABELS = { yes: 'Да', no: 'Нет', true: 'Да', false: 'Нет' }
+// Поддержка старых значений yes/no/true/false и новых none/account/owner
+const REGISTERED_ED_LABELS = {
+  none: 'Нет ЭД / нет данных',
+  account: 'ЭД без подтверждённой собственности',
+  owner: 'Собственность подтверждена в ЭД',
+  yes: 'Собственность подтверждена в ЭД',
+  no: 'Нет ЭД / нет данных',
+  true: 'Собственность подтверждена в ЭД',
+  false: 'Нет ЭД / нет данных',
+}
 
 export default function AdminContactsList() {
   const navigate = useNavigate()

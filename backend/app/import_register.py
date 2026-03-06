@@ -123,16 +123,31 @@ def _normalize_vote_format(val: Any) -> str | None:
 
 
 def _normalize_registered_ed(val: Any) -> str | None:
-    """Привести значение к yes | no. None если пусто или не распознано."""
+    """
+    Привести значение к one of: none | account | owner.
+    None если пусто или не распознано.
+    Старые значения yes/no/true/false/1/0 маппятся в owner/none.
+    """
     if val is None or (isinstance(val, str) and not val.strip()):
         return None
     s = str(val).strip().lower()
     if not s:
         return None
+
+    # Новые значения enum напрямую
+    if s in ("none",):
+        return "none"
+    if s in ("account",):
+        return "account"
+    if s in ("owner",):
+        return "owner"
+
+    # Обратная совместимость со старыми yes/no/true/false/1/0
     if s in ("yes", "да", "true", "1"):
-        return "yes"
+        return "owner"
     if s in ("no", "нет", "false", "0"):
-        return "no"
+        return "none"
+
     return None
 
 

@@ -58,9 +58,10 @@ export function getRoleFromToken(t) {
 /** FE-06: Максимум ячеек в одной визуальной строке шахматки. */
 const CHESSBOARD_ROW_LIMIT = 9
 
-/** FE-06: цвета фона ячейки по позиции ОСС. */
+/** FE-06: цвета фона ячейки по позиции ОСС и статусу ЭД. */
 const STATE_BG = {
   none: '#fff',
+  ed_account: '#ffe0b2',
   registered: '#fff9c4',
   vote_for: '#c8e6c9',
   full: '#66bb6a',
@@ -171,10 +172,10 @@ function Home() {
             <p className={`quorum-result ${quorum.quorum_reached ? 'quorum-reached' : ''}`}>
               {quorum.quorum_reached ? 'Кворум набирается (порог 2/3 достигнут)' : 'Кворум не набирается (порог 2/3 пока не достигнут)'}
             </p>
-            {/* SR-FE06-016: % в Электронном доме по дому */}
+            {/* SR-FE06-016: % в Электронном доме по дому (по помещениям с подтверждённой собственностью) */}
             {quorum.total_area > 0 && typeof quorum.area_registered_ed === 'number' && (
               <p className="quorum-ed-stats quorum-stats">
-                В Электронном доме: <strong>{quorum.area_registered_ed}</strong> м² из <strong>{quorum.total_area}</strong> м²
+                В Электронном доме (с подтверждённой собственностью): <strong>{quorum.area_registered_ed}</strong> м² из <strong>{quorum.total_area}</strong> м²
                 ({(quorum.ed_ratio * 100).toFixed(1)}%)
               </p>
             )}
@@ -202,7 +203,7 @@ function Home() {
           </p>
           {board.entrance_total_area > 0 && typeof board.entrance_area_registered_ed === 'number' && (
             <p className="chessboard-stats-line">
-              В Электронном доме по подъезду: <strong>{board.entrance_area_registered_ed}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
+              В Электронном доме по подъезду (с подтверждённой собственностью): <strong>{board.entrance_area_registered_ed}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
               ({(board.entrance_ed_ratio * 100).toFixed(1)}%)
             </p>
           )}
@@ -253,7 +254,8 @@ function Home() {
           <div className="chessboard-legend" aria-label="Обозначения">
             <span className="legend-title">Обозначения:</span>
             <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.none }} />Нет информации</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.registered }} />Зарегистрированы в ЭД</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.ed_account }} />ЭД без подтверждённой собственности</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.registered }} />Собственность подтверждена в ЭД</span>
             <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.vote_for }} />Есть голос «ЗА»</span>
             <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.full }} />Все голосуют «ЗА»</span>
             <span className="legend-item"><TelegramIcon width={14} height={14} /> Есть Telegram / телефон</span>

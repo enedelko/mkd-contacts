@@ -90,6 +90,7 @@ def confirm_remove_premise_kb(premise_id: str) -> InlineKeyboardMarkup:
 def vote_method_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Планирую установить ЭД", callback_data="vote:ed_plan")],
+        [InlineKeyboardButton(text="ЭД установлен, требуется подтвердить собственность", callback_data="vote:ed_confirm")],
         [InlineKeyboardButton(text="ЭД установлено, собственность видна", callback_data="vote:ed_ok")],
         [InlineKeyboardButton(text="На бумажном бюллетене", callback_data="vote:paper")],
         [InlineKeyboardButton(text="Не буду голосовать", callback_data="vote:abstain")],

@@ -444,14 +444,36 @@ export default function AdminContacts() {
               Не определился(-ась)
             </label>
 
-            <p>Зарегистрирован(-а) в <a href="https://ed.mos.ru/about-oss/" target="_blank" rel="noopener noreferrer">Электронном доме</a>:</p>
+            <p>Статус в <a href="https://ed.mos.ru/about-oss/" target="_blank" rel="noopener noreferrer">Электронном доме</a>:</p>
             <label>
-              <input type="radio" name="registeredEd" value="yes" checked={registeredEd === 'yes'} onChange={() => setRegisteredEd('yes')} />
-              Да
+              <input
+                type="radio"
+                name="registeredEd"
+                value="none"
+                checked={registeredEd === 'none'}
+                onChange={() => setRegisteredEd('none')}
+              />
+              Не пользуется ЭД / нет данных
             </label>
             <label>
-              <input type="radio" name="registeredEd" value="no" checked={registeredEd === 'no'} onChange={() => setRegisteredEd('no')} />
-              Нет
+              <input
+                type="radio"
+                name="registeredEd"
+                value="account"
+                checked={registeredEd === 'account'}
+                onChange={() => setRegisteredEd('account')}
+              />
+              ЭД установлен, требуется подтвердить собственность
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="registeredEd"
+                value="owner"
+                checked={registeredEd === 'owner'}
+                onChange={() => setRegisteredEd('owner')}
+              />
+              Собственность подтверждена и видна в ЭД
             </label>
           </fieldset>
         )}
