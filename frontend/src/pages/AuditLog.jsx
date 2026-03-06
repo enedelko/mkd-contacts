@@ -1,9 +1,9 @@
 /**
  * BE-03: Просмотр аудит-лога для администратора.
- * Фильтрация по типу сущности, действию, пользователю. Пагинация.
+ * SR-BE03-008..014: фильтры по дате/entity_id, подписи, ссылки.
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { clearAuth } from '../App'
 import TelegramIcon from '../components/TelegramIcon'
 import { checkConsentRedirect } from '../utils/adminApi'
@@ -14,9 +14,49 @@ const ACTION_LABELS = {
   delete: 'Удаление',
   select: 'Просмотр',
   status_change: 'Смена статуса',
+  premise_removed: 'Отвязка помещения',
+  bot_answers_update: 'Обновление (бот)',
+  forget: 'Удаление данных',
+  password_change: 'Смена пароля',
+  policy_consent: 'Согласие с политикой',
+  export: 'Экспорт',
+}
+
+const ENTITY_TYPE_LABELS = {
+  contact: 'Контакт',
+  admin: 'Админ',
+  bot_alias: 'Бот-алиас',
+  contacts_template: 'Шаблон контактов',
+}
+
+const FIELD_LABELS = {
+  phone: 'телефон',
+  email: 'email',
+  telegram_id: 'Telegram',
+  how_to_address: 'обращение',
+  is_owner: 'собственник',
+  barrier_vote: 'голос (шлагбаум)',
+  vote_format: 'формат голосования',
+  registered_in_ed: 'Электронный Дом',
 }
 
 const PAGE_SIZE = 50
+
+function formatNewValue(action, newValue) {
+  if (action === 'update' && !newValue) {
+    return <em className="audit-no-details">подробности не зафиксированы</em>
+  }
+  if (action === 'update' && newValue && /^[a-z_,]+$/.test(newValue)) {
+    const labels = newValue.split(',').map(f => FIELD_LABELS[f] || f)
+    return `Изменены: ${labels.join(', ')}`
+  }
+  return newValue || '—'
+}
+
+function telegramChatUrl(telegramId) {
+  if (!telegramId || String(telegramId).trim() === '') return null
+  return `tg://user?id=${String(telegramId).trim()}`
+}
 
 export default function AuditLog() {
   const navigate = useNavigate()
@@ -28,10 +68,12 @@ export default function AuditLog() {
   const [error, setError] = useState(null)
   const [offset, setOffset] = useState(0)
 
-  // Фильтры
   const [filterEntity, setFilterEntity] = useState('')
   const [filterAction, setFilterAction] = useState('')
   const [filterUser, setFilterUser] = useState('')
+  const [filterEntityId, setFilterEntityId] = useState('')
+  const [filterFromDate, setFilterFromDate] = useState('')
+  const [filterToDate, setFilterToDate] = useState('')
 
   useEffect(() => {
     if (!token) navigate('/login', { replace: true })
@@ -46,6 +88,9 @@ export default function AuditLog() {
       if (filterEntity) params.set('entity_type', filterEntity)
       if (filterAction) params.set('action', filterAction)
       if (filterUser.trim()) params.set('user_id', filterUser.trim())
+      if (filterEntityId.trim()) params.set('entity_id', filterEntityId.trim())
+      if (filterFromDate) params.set('from_date', filterFromDate)
+      if (filterToDate) params.set('to_date', filterToDate)
       params.set('limit', String(PAGE_SIZE))
       params.set('offset', String(offset))
       const res = await fetch(`/api/admin/audit?${params}`, {
@@ -70,7 +115,7 @@ export default function AuditLog() {
     } finally {
       setLoading(false)
     }
-  }, [token, filterEntity, filterAction, filterUser, offset, navigate])
+  }, [token, filterEntity, filterAction, filterUser, filterEntityId, filterFromDate, filterToDate, offset, navigate])
 
   useEffect(() => {
     fetchAudit()
@@ -79,10 +124,42 @@ export default function AuditLog() {
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
 
-  /** Ссылка на чат с пользователем по Telegram ID (user_id в логе — это telegram_id админа) */
-  const telegramChatUrl = (telegramId) => {
-    if (!telegramId || String(telegramId).trim() === '') return null
-    return `tg://user?id=${String(telegramId).trim()}`
+  function renderEntityCell(a) {
+    const isContactLink = a.entity_type === 'contact' && a.entity_id && /^\d+$/.test(a.entity_id)
+    const label = a.entity_label || a.entity_id || '—'
+    if (isContactLink) {
+      return (
+        <td className="entity-id-cell" title={`ID контакта: ${a.entity_id}`}>
+          <Link to={`/admin/contacts/${a.entity_id}`}>{label}</Link>
+        </td>
+      )
+    }
+    return (
+      <td className="entity-id-cell" title={a.entity_id}>
+        {label.length > 30 ? label.slice(0, 30) + '…' : label}
+      </td>
+    )
+  }
+
+  function renderUserCell(a) {
+    const effectiveId = a.user_id || a.user_id_resolved
+    const tgUrl = telegramChatUrl(effectiveId)
+    const label = a.user_label || (a.user_id ? a.user_id : null)
+
+    if (!effectiveId) {
+      return <td className="user-cell">аноним</td>
+    }
+    return (
+      <td className="user-cell" title={`Telegram ID: ${effectiveId}`}>
+        {label && <span className="user-name">{label}</span>}
+        {tgUrl && (
+          <a href={tgUrl} target="_blank" rel="noopener noreferrer" className="link-telegram-chat" title="Написать в Telegram">
+            <TelegramIcon width={18} height={18} />
+          </a>
+        )}
+        {!label && !tgUrl && effectiveId}
+      </td>
+    )
   }
 
   return (
@@ -94,9 +171,9 @@ export default function AuditLog() {
           Сущность:
           <select value={filterEntity} onChange={(e) => { setFilterEntity(e.target.value); setOffset(0) }}>
             <option value="">Все</option>
-            <option value="contact">Контакт</option>
-            <option value="premise">Помещение</option>
-            <option value="admin">Админ</option>
+            {Object.entries(ENTITY_TYPE_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
           </select>
         </label>
         <label>
@@ -114,7 +191,32 @@ export default function AuditLog() {
             type="text"
             value={filterUser}
             onChange={(e) => setFilterUser(e.target.value)}
-            placeholder="ID пользователя"
+            placeholder="Telegram ID"
+          />
+        </label>
+        <label>
+          ID записи:
+          <input
+            type="text"
+            value={filterEntityId}
+            onChange={(e) => setFilterEntityId(e.target.value)}
+            placeholder="ID контакта"
+          />
+        </label>
+        <label>
+          С даты:
+          <input
+            type="date"
+            value={filterFromDate}
+            onChange={(e) => { setFilterFromDate(e.target.value); setOffset(0) }}
+          />
+        </label>
+        <label>
+          По дату:
+          <input
+            type="date"
+            value={filterToDate}
+            onChange={(e) => { setFilterToDate(e.target.value); setOffset(0) }}
           />
         </label>
         <button type="button" onClick={() => { setOffset(0); fetchAudit() }} disabled={loading}>
@@ -133,12 +235,11 @@ export default function AuditLog() {
               <th>ID</th>
               <th>Время</th>
               <th>Сущность</th>
-              <th>ID записи</th>
+              <th>Запись</th>
               <th>Действие</th>
               <th>Старое</th>
               <th>Новое</th>
               <th>Пользователь</th>
-              <th title="Чат в Telegram">ТГ</th>
               <th>IP</th>
             </tr>
           </thead>
@@ -146,20 +247,13 @@ export default function AuditLog() {
             {items.map((a) => (
               <tr key={a.id}>
                 <td>{a.id}</td>
-                <td>{a.created_at ? new Date(a.created_at).toLocaleString('ru-RU') : '—'}</td>
-                <td>{a.entity_type}</td>
-                <td className="entity-id-cell" title={a.entity_id}>{a.entity_id?.length > 20 ? a.entity_id.slice(0, 20) + '…' : a.entity_id || '—'}</td>
+                <td className="audit-time-cell">{a.created_at ? new Date(a.created_at).toLocaleString('ru-RU') : '—'}</td>
+                <td>{ENTITY_TYPE_LABELS[a.entity_type] || a.entity_type}</td>
+                {renderEntityCell(a)}
                 <td><span className={`action-badge ${a.action}`}>{ACTION_LABELS[a.action] || a.action}</span></td>
                 <td>{a.old_value || '—'}</td>
-                <td>{a.new_value || '—'}</td>
-                <td>{a.user_id || '—'}</td>
-                <td>
-                  {telegramChatUrl(a.user_id) ? (
-                    <a href={telegramChatUrl(a.user_id)} target="_blank" rel="noopener noreferrer" className="link-telegram-chat" title="Написать в Telegram">
-                      <TelegramIcon width={20} height={20} />
-                    </a>
-                  ) : '—'}
-                </td>
+                <td>{formatNewValue(a.action, a.new_value)}</td>
+                {renderUserCell(a)}
                 <td>{a.ip || '—'}</td>
               </tr>
             ))}

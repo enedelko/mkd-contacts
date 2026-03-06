@@ -369,8 +369,17 @@ def update_contact(
     admin_id = payload.get("sub")
 
     with get_db() as db:
-        row = db.execute(text("SELECT id FROM contacts WHERE id = :cid"), {"cid": contact_id}).fetchone()
-        if not row:
+        old = db.execute(
+            text(
+                "SELECT c.id, c.is_owner, c.phone_idx, c.email_idx, c.telegram_id_idx, "
+                "c.registered_in_ed, c.how_to_address, "
+                "o.barrier_vote, o.vote_format "
+                "FROM contacts c LEFT JOIN oss_voting o ON o.contact_id = c.id "
+                "WHERE c.id = :cid"
+            ),
+            {"cid": contact_id},
+        ).fetchone()
+        if not old:
             raise HTTPException(status_code=404, detail="Контакт не найден")
 
         phone_enc = encrypt(body.phone) if body.phone else None
@@ -380,6 +389,27 @@ def update_contact(
         phone_idx = blind_index_phone(body.phone) if body.phone else None
         email_idx = blind_index_email(body.email) if body.email else None
         telegram_id_idx = blind_index_telegram_id(body.telegram_id) if body.telegram_id else None
+
+        # SR-BE03-011: определяем изменённые поля (без значений ПДн)
+        changed: list[str] = []
+        if body.is_owner != old[1]:
+            changed.append("is_owner")
+        if phone_idx != old[2]:
+            changed.append("phone")
+        if email_idx != old[3]:
+            changed.append("email")
+        if telegram_id_idx != old[4]:
+            changed.append("telegram_id")
+        if (body.registered_ed or None) != (old[5] or None):
+            changed.append("registered_in_ed")
+        old_how = (decrypt(old[6]) or "").strip() or None
+        new_how = (body.how_to_address or "").strip() or None
+        if new_how != old_how:
+            changed.append("how_to_address")
+        if (body.barrier_vote or None) != (old[7] or None):
+            changed.append("barrier_vote")
+        if (body.vote_format or None) != (old[8] or None):
+            changed.append("vote_format")
 
         db.execute(
             text(
@@ -394,7 +424,6 @@ def update_contact(
                 "re": body.registered_ed, "cid": contact_id,
             },
         )
-        # Обновить oss_voting
         oss = db.execute(text("SELECT 1 FROM oss_voting WHERE contact_id = :cid"), {"cid": contact_id}).fetchone()
         if oss:
             db.execute(
@@ -406,7 +435,8 @@ def update_contact(
                 text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, :bv, :vf, false)"),
                 {"cid": contact_id, "bv": body.barrier_vote, "vf": body.vote_format},
             )
-        _audit_log(db, "contact", str(contact_id), "update", None, None, admin_id, client_ip)
+        changed_str = ",".join(changed) if changed else None
+        _audit_log(db, "contact", str(contact_id), "update", None, changed_str, admin_id, client_ip)
         db.commit()
 
     logger.info("ADM-03: contact updated id=%s by sub=%s", contact_id, admin_id)

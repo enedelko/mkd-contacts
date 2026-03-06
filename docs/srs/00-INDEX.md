@@ -84,6 +84,7 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | Код | Файл |
 |-----|------|
 | BE-01 | [02-BE-01-infrastructure.md](02-BE-01-infrastructure.md) |
+| BE-03, BE-04, CORE-03 | [07-audit-ratelimit.md](07-audit-ratelimit.md) |
 | LOST-01, BE-02, ADM-01, ADM-04 | [03-basic-admin.md](03-basic-admin.md) |
 | ADM-01-PWD | [09-admin-login-password.md](09-admin-login-password.md) |
 | CORE-01, LOST-02 | [04-import-chain.md](04-import-chain.md) |

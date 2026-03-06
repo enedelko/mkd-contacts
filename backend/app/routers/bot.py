@@ -129,7 +129,7 @@ def add_premise(body: PremiseBody) -> dict[str, Any]:
                 text("INSERT INTO oss_voting (contact_id, barrier_vote, vote_format, voted) VALUES (:cid, NULL, NULL, false)"),
                 {"cid": cid},
             )
-            _audit_log(db, "contact", str(cid), "insert", None, "source=telegram", None, None)
+            _audit_log(db, "contact", str(cid), "insert", None, "source=telegram", body.telegram_user_id, None)
         db.commit()
         return {"detail": "Premise linked", "contact_id": cid}
 
@@ -160,7 +160,7 @@ def remove_premise(premise_id: str, body: PremiseBody) -> dict[str, Any]:
             ),
             {"cid": cid},
         )
-        _audit_log(db, "contact", str(cid), "premise_removed", None, None, None, None)
+        _audit_log(db, "contact", str(cid), "premise_removed", None, None, body.telegram_user_id, None)
         db.commit()
     return {"detail": "Premise removed"}
 
@@ -236,7 +236,7 @@ def update_answers(body: AnswersBody) -> dict[str, Any]:
                         {"cid": c["id"], "vf": vf, "bv": bv},
                     )
 
-        _audit_log(db, "contact", tg_idx, "bot_answers_update", None, None, None, None)
+        _audit_log(db, "contact", tg_idx, "bot_answers_update", None, None, body.telegram_user_id, None)
         db.commit()
     return {"detail": "Answers updated"}
 
@@ -332,6 +332,6 @@ def forget(body: ForgetBody) -> dict[str, Any]:
                 {"cid": c["id"]},
             )
 
-        _audit_log(db, "contact", tg_idx, "forget", None, None, None, None)
+        _audit_log(db, "contact", tg_idx, "forget", None, None, body.telegram_user_id, None)
         db.commit()
     return {"detail": "All data deleted"}
