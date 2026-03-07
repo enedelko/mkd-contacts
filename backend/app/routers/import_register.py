@@ -14,7 +14,9 @@ from app.client_ip import get_client_ip
 from app.db import get_db
 from app.import_register import (
     build_contacts_template_xlsx,
+    build_contacts_template_xlsx_full_house,
     create_watermark,
+    create_watermark_full_house,
     get_expected_columns,
     get_expected_columns_contacts_only,
     parse_file,
@@ -198,4 +200,43 @@ def contacts_template(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": content_disp},
+    )
+
+
+@router.get("/import/contacts-template-full")
+def contacts_template_full(
+    request: Request,
+    payload: dict = Depends(require_super_admin_with_consent),
+) -> Response:
+    """
+    Шаблон контактов по всем помещениям дома (только суперадмин).
+    Один canary по случайному помещению; запись в audit_log с entity_id=full_house.
+    """
+    canary_row = None
+    if payload.get("sub"):
+        canary_row = create_watermark_full_house(payload.get("sub"))
+    try:
+        content, row_count = build_contacts_template_xlsx_full_house(canary_row=canary_row)
+    except Exception as e:
+        logger.exception("Contacts template full house failed: %s", e)
+        raise HTTPException(status_code=503, detail="Template generation failed") from e
+
+    if row_count > 0:
+        with get_db() as db:
+            _audit_log(
+                db,
+                "contacts_template",
+                "full_house",
+                "export",
+                None,
+                json.dumps({"row_count": row_count, "format": "xlsx", "scope": "full_house"}),
+                payload.get("sub"),
+                get_client_ip(request),
+            )
+            db.commit()
+
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="contacts_template_full.xlsx"'},
     )

@@ -208,6 +208,14 @@
 
 ---
 
+### Шаблон по всем помещениям дома (суперадмин)
+
+* **Требование:** Система должна предоставлять суперадмину возможность скачать XLSX-шаблон по **всем** помещениям (без выбора подъезда). Те же колонки и формат, что в ADM-08. Запись в аудит с `entity_id=full_house`, лимит строк — разумный (например, 15 000). Доступ только для роли `super_administrator`. В шаблон подставляется один canary по случайному помещению (атрибуция утечки, как в ADM-08; в `export_watermarks` — `entrance='full_house'`).
+
+* **API:** `GET /api/admin/import/contacts-template-full`. Заголовок `Authorization: Bearer <JWT>`. Доступ — только `require_super_admin_with_consent`.
+
+---
+
 ## Реализация (Implementation)
 
 | Компонент | Расположение |
@@ -216,3 +224,4 @@
 | API POST /api/admin/import/contacts | backend/app/routers/import_register.py |
 | Блок «Загрузка контактов» и условное отображение блоков по роли | frontend/src/pages/Upload.jsx |
 | Формирование шаблона XLSX по подъезду и запись в аудит (ADM-08) | backend: [import_register.py](../../backend/app/import_register.py), [routers/import_register.py](../../backend/app/routers/import_register.py); frontend: [Upload.jsx](../../frontend/src/pages/Upload.jsx) — секция «Шаблон контактов по подъезду». Сортировка помещений (SR-ADM08-005), колонка «ТГ» в XLSX (SR-ADM08-006). Доработки UI: см. п. 8 (выбор подъезда кнопками, state, формат телефона в XLSX). |
+| Шаблон по всем помещениям дома (суперадмин) | backend: [import_register.py](../../backend/app/import_register.py) — `create_watermark_full_house`, `build_contacts_template_xlsx_full_house`; [routers/import_register.py](../../backend/app/routers/import_register.py) — `GET /import/contacts-template-full`; frontend: [Upload.jsx](../../frontend/src/pages/Upload.jsx) — секция «Шаблон по всему дому» (только при isSuperAdmin). |

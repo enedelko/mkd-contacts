@@ -29,11 +29,18 @@ export default function Upload() {
   const [entrance, setEntrance] = useState('')
   const [loadingTemplate, setLoadingTemplate] = useState(false)
   const [templateError, setTemplateError] = useState(null)
+  const [loadingTemplateFull, setLoadingTemplateFull] = useState(false)
+  const [templateFullError, setTemplateFullError] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
 
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('mkd_access_token') : null
   const isSuperAdmin = getRoleFromToken(token) === 'super_administrator'
+
+  // Редирект на логин без JWT (страница только для админа)
+  useEffect(() => {
+    if (!token) navigate('/login', { replace: true })
+  }, [token, navigate])
 
   // Восстановление подъезда из state при переходе с экрана «Контакты» (п. 8 ADM-08)
   useEffect(() => {
@@ -165,6 +172,40 @@ export default function Upload() {
     }
   }
 
+  const handleDownloadTemplateFull = async (e) => {
+    e.preventDefault()
+    if (!token) return
+    setLoadingTemplateFull(true)
+    setTemplateFullError(null)
+    try {
+      const res = await fetch('/api/admin/import/contacts-template-full', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
+        clearAuth()
+        navigate('/login', { replace: true })
+        return
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setTemplateFullError(data.detail || `Ошибка ${res.status}`)
+        return
+      }
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'contacts_template_full.xlsx'
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (err) {
+      setTemplateFullError(err.message || 'Ошибка сети')
+    } finally {
+      setLoadingTemplateFull(false)
+    }
+  }
+
   return (
     <div className="upload-page">
       <h1>Загрузка данных</h1>
@@ -260,6 +301,19 @@ export default function Upload() {
         )}
         {templateError && <div className="import-error" role="alert">{templateError}</div>}
       </section>
+
+      {isSuperAdmin && (
+        <section className="upload-section" aria-labelledby="template-full-heading">
+          <h2 id="template-full-heading">Шаблон по всему дому</h2>
+          <p>Только для суперадмина: скачать XLSX по всем помещениям (без выбора подъезда). Формат тот же, что у шаблона по подъезду.</p>
+          <form onSubmit={handleDownloadTemplateFull}>
+            <button type="submit" disabled={loadingTemplateFull || loadingTemplate}>
+              {loadingTemplateFull ? 'Формирование…' : 'Скачать шаблон по всем помещениям'}
+            </button>
+          </form>
+          {templateFullError && <div className="import-error" role="alert">{templateFullError}</div>}
+        </section>
+      )}
     </div>
   )
 }

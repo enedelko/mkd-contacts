@@ -655,6 +655,55 @@ def create_watermark(admin_telegram_id: str, entrance: str) -> dict[str, Any] | 
     }
 
 
+FULL_HOUSE_ENTRANCE = "full_house"
+FULL_HOUSE_ROW_LIMIT = 15000
+
+
+def create_watermark_full_house(admin_telegram_id: str) -> dict[str, Any] | None:
+    """
+    Canary для шаблона по всему дому: одно случайное помещение из premises,
+    запись в export_watermarks с entrance='full_house'. Возврат dict для вставки в шаблон.
+    """
+    with get_db() as db:
+        premise_row = db.execute(
+            text(
+                "SELECT cadastral_number FROM premises ORDER BY random() LIMIT 1"
+            ),
+        ).fetchone()
+        if not premise_row:
+            return None
+        premise_id = premise_row[0]
+        phone = "+7916" + "".join(random.choices("0123456789", k=7))
+        canary_telegram_id = str(random.randint(10**7, 10**10 - 1))
+        how_to_address = random.choice(CANARY_NAMES)
+        result = db.execute(
+            text(
+                "INSERT INTO export_watermarks "
+                "(admin_telegram_id, entrance, premise_id, phone, canary_telegram_id, how_to_address) "
+                "VALUES (:aid, :e, :pid, :phone, :tg, :how) "
+                "RETURNING created_at"
+            ),
+            {
+                "aid": admin_telegram_id,
+                "e": FULL_HOUSE_ENTRANCE,
+                "pid": premise_id,
+                "phone": phone,
+                "tg": canary_telegram_id,
+                "how": how_to_address,
+            },
+        )
+        created_at_row = result.fetchone()
+        db.commit()
+    created_at = created_at_row[0] if created_at_row else None
+    return {
+        "premise_id": premise_id,
+        "phone": phone,
+        "canary_telegram_id": canary_telegram_id,
+        "how_to_address": how_to_address,
+        "created_at": created_at.isoformat() if created_at else None,
+    }
+
+
 def _telegram_link(telegram_id: str | None, phone: str | None) -> str:
     """SR-ADM08-006: ссылка в Telegram по telegram_id или по телефону (логика как в списке контактов)."""
     if telegram_id and str(telegram_id).strip():
@@ -793,6 +842,137 @@ def build_contacts_template_xlsx(entrance: str, canary_row: dict[str, Any] | Non
         ws.cell(row=row_idx, column=g_col).value = formula
 
     # Data Validation: выпадающие списки для позиции по шлагбаумам и формата голосования (openpyxl поддерживает)
+    from openpyxl.worksheet.datavalidation import DataValidation
+    max_row = len(rows) + 1
+    dv_bv = DataValidation(
+        type="list",
+        formula1='"ЗА,Против,Не определился"',
+        allow_blank=True,
+        promptTitle="Позиция по шлагбаумам",
+        prompt="Выберите: ЗА, Против, Не определился",
+    )
+    dv_bv.add(f"J2:J{max_row}")
+    ws.add_data_validation(dv_bv)
+    dv_vf = DataValidation(
+        type="list",
+        formula1='"Электронно,Бумага,Не определился"',
+        allow_blank=True,
+        promptTitle="Формат голосования",
+        prompt="Выберите: Электронно, Бумага, Не определился",
+    )
+    dv_vf.add(f"K2:K{max_row}")
+    ws.add_data_validation(dv_vf)
+    dv_re = DataValidation(
+        type="list",
+        formula1='"Да,Нет"',
+        allow_blank=True,
+        promptTitle="Электронный дом",
+        prompt="Зарегистрирован в Электронном доме: Да, Нет",
+    )
+    dv_re.add(f"L2:L{max_row}")
+    ws.add_data_validation(dv_re)
+
+    ws.freeze_panes = "A2"
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue(), len(rows)
+
+
+def build_contacts_template_xlsx_full_house(canary_row: dict[str, Any] | None = None) -> tuple[bytes, int]:
+    """
+    Шаблон контактов по всем помещениям дома (без фильтра по подъезду).
+    Лимит FULL_HOUSE_ROW_LIMIT строк. Один canary по случайному помещению — опционально (canary_row).
+    Возвращает (содержимое файла, количество строк данных).
+    """
+    import openpyxl
+
+    rows = []
+    with get_db() as db:
+        q = text(
+            "SELECT p.cadastral_number, p.premises_type, p.premises_number, "
+            "c.id, c.phone, c.email, c.telegram_id, c.how_to_address, c.is_owner, "
+            "o.barrier_vote, o.vote_format, c.registered_in_ed "
+            "FROM premises p "
+            "LEFT JOIN contacts c ON c.premise_id = p.cadastral_number "
+            "LEFT JOIN oss_voting o ON o.contact_id = c.id "
+            "ORDER BY p.premises_type NULLS LAST, "
+            "(NULLIF(TRIM(REGEXP_REPLACE(COALESCE(p.premises_number, ''), '[^0-9].*', '')), '')::int) NULLS LAST, "
+            "p.premises_number NULLS LAST, c.id NULLS LAST "
+            "LIMIT :lim"
+        )
+        result = db.execute(q, {"lim": FULL_HOUSE_ROW_LIMIT}).fetchall()
+        for r in result:
+            cn, pt, pn = r[0], r[1], r[2]
+            cid, phone_enc, email_enc, tg_enc, how_enc = r[3], r[4], r[5], r[6], r[7]
+            is_owner, bv, vf, reg_ed = r[8], r[9], r[10], r[11]
+            if cid is None:
+                rows.append([cn or "", pt or "", pn or "", "", "", "", "", "", True, "", "", ""])
+            else:
+                phone_raw = decrypt(phone_enc) if phone_enc else ""
+                email = decrypt(email_enc) if email_enc else ""
+                telegram_id = decrypt(tg_enc) if tg_enc else ""
+                how_to_address = decrypt(how_enc) if how_enc else ""
+                phone_display = _format_phone_display(phone_raw) or phone_raw or ""
+                bv_display = BARRIER_VOTE_DISPLAY.get(bv, bv) if bv else ""
+                vf_display = VOTE_FORMAT_DISPLAY.get(vf, vf) if vf else ""
+                reg_ed_display = REGISTERED_ED_DISPLAY.get(reg_ed, reg_ed) if reg_ed else ""
+                rows.append([
+                    cn or "", pt or "", pn or "",
+                    phone_display, email or "", telegram_id or "", "", how_to_address or "",
+                    is_owner if is_owner is not None else True,
+                    bv_display, vf_display, reg_ed_display,
+                ])
+
+    if canary_row:
+        pid = canary_row["premise_id"]
+        insert_idx = -1
+        for i, row in enumerate(rows):
+            if row[0] == pid:
+                insert_idx = i
+        if insert_idx >= 0:
+            cn, pt, pn = rows[insert_idx][0], rows[insert_idx][1], rows[insert_idx][2]
+        else:
+            with get_db() as db2:
+                pr = db2.execute(
+                    text("SELECT cadastral_number, premises_type, premises_number FROM premises WHERE cadastral_number = :pid"),
+                    {"pid": pid},
+                ).fetchone()
+                cn = pr[0] if pr else pid
+                pt = pr[1] if pr else ""
+                pn = pr[2] if pr else ""
+        phone_display = _format_phone_display(canary_row["phone"]) or canary_row["phone"]
+        canary_line = [
+            cn or "", pt or "", pn or "",
+            phone_display, "", canary_row["canary_telegram_id"], "", canary_row["how_to_address"],
+            True, "", "", "",
+        ]
+        if insert_idx >= 0:
+            rows.insert(insert_idx + 1, canary_line)
+        else:
+            rows.append(canary_line)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    if ws is None:
+        ws = wb.create_sheet("Контакты")
+    ws.title = "Контакты"
+    ws.append(CONTACTS_TEMPLATE_HEADERS_RU)
+    for row in rows:
+        ws.append(row)
+
+    g_col = COL_TG_LINK + 1
+    for row_idx in range(2, len(rows) + 2):
+        formula = (
+            f'=IF(F{row_idx}<>"",'
+            f'IF(ISERROR(VALUE(F{row_idx})),'
+            f'HYPERLINK("https://t.me/"&SUBSTITUTE(SUBSTITUTE(TRIM(F{row_idx}),"@","")," ",""),"\u2708"),'
+            f'HYPERLINK("tg://user?id="&F{row_idx},"\u2708")),'
+            f'IF(D{row_idx}<>"",'
+            f'HYPERLINK("https://t.me/+"&SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(D{row_idx}," ",""),"(",""),")",""),"-",""),"+",""),".",""),"\u2708"),""))'
+        )
+        ws.cell(row=row_idx, column=g_col).value = formula
+
     from openpyxl.worksheet.datavalidation import DataValidation
     max_row = len(rows) + 1
     dv_bv = DataValidation(
