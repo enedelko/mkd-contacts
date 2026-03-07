@@ -72,6 +72,15 @@ def get_quorum(building_id: str) -> dict[str, Any]:
                   AND c.status IN ('pending', 'validated')
             )
         """
+        # Площадь помещений, где есть контакт с ЭД (owner ИЛИ account) — все зарегистрированные
+        ed_exists_any = """
+            EXISTS (
+                SELECT 1 FROM contacts c
+                WHERE c.premise_id = p.cadastral_number
+                  AND c.registered_in_ed IN ('owner', 'account')
+                  AND c.status IN ('pending', 'validated')
+            )
+        """
         if use_prefix:
             area_ed_row = db.execute(
                 text(f"""
@@ -80,15 +89,27 @@ def get_quorum(building_id: str) -> dict[str, Any]:
                 """),
                 {"bid": building_id},
             ).fetchone()
+            area_ed_any_row = db.execute(
+                text(f"""
+                    SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
+                    WHERE starts_with(p.cadastral_number, :bid) AND {ed_exists_any}
+                """),
+                {"bid": building_id},
+            ).fetchone()
         else:
             area_ed_row = db.execute(
                 text(f"SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p WHERE {ed_exists}")
             ).fetchone()
+            area_ed_any_row = db.execute(
+                text(f"SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p WHERE {ed_exists_any}")
+            ).fetchone()
         area_registered_ed = float(area_ed_row[0] or 0)
+        area_registered_ed_any = float(area_ed_any_row[0] or 0)
 
     ratio = (area_voted_for / total_area) if total_area > 0 else 0.0
     quorum_reached = ratio >= QUORUM_THRESHOLD
     ed_ratio = (area_registered_ed / total_area) if total_area > 0 else 0.0
+    ed_any_ratio = (area_registered_ed_any / total_area) if total_area > 0 else 0.0
 
     return {
         "total_area": round(total_area, 2),
@@ -98,4 +119,6 @@ def get_quorum(building_id: str) -> dict[str, Any]:
         "quorum_reached": quorum_reached,
         "area_registered_ed": round(area_registered_ed, 2),
         "ed_ratio": round(ed_ratio, 4),
+        "area_registered_ed_any": round(area_registered_ed_any, 2),
+        "ed_any_ratio": round(ed_any_ratio, 4),
     }

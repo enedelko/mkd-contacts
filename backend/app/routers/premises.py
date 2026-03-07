@@ -124,6 +124,17 @@ def chessboard(
                     -- есть ли хотя бы один собственник с аккаунтом ЭД без подтверждённой собственности
                     BOOL_OR(c.registered_in_ed = 'account')
                         FILTER (WHERE c.status IN ('pending', 'validated'))                    AS has_account_ed,
+                    -- «зелёный» пул: активные собственники с ЭД owner ИЛИ vote_format = 'paper'
+                    COUNT(DISTINCT c.id) FILTER (
+                        WHERE c.status IN ('pending', 'validated') AND c.is_owner = true
+                          AND (c.registered_in_ed = 'owner' OR o.vote_format = 'paper')
+                    )                                                                          AS cnt_active_green,
+                    -- из пула — с голосом «ЗА»
+                    COUNT(DISTINCT c.id) FILTER (
+                        WHERE c.status IN ('pending', 'validated') AND c.is_owner = true
+                          AND (c.registered_in_ed = 'owner' OR o.vote_format = 'paper')
+                          AND o.barrier_vote = 'for'
+                    )                                                                          AS cnt_vote_for_green,
                     -- есть ли telegram_id или phone среди активных
                     BOOL_OR(
                         (c.telegram_id IS NOT NULL AND c.telegram_id != '')
@@ -181,6 +192,22 @@ def chessboard(
         ).fetchone()
         area_registered_ed = float(area_ed_row[0] or 0)
 
+        # Площадь помещений подъезда, где есть контакт в ЭД (owner ИЛИ account) — все зарегистрированные
+        area_ed_any_row = db.execute(
+            text("""
+                SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
+                WHERE p.entrance = :entrance
+                AND EXISTS (
+                    SELECT 1 FROM contacts c
+                    WHERE c.premise_id = p.cadastral_number
+                      AND c.registered_in_ed IN ('owner', 'account')
+                      AND c.status IN ('pending', 'validated')
+                )
+            """),
+            {"entrance": entrance},
+        ).fetchone()
+        area_registered_ed_any = float(area_ed_any_row[0] or 0)
+
     # Группируем по этажам
     floors_map: dict[str, list] = {}
     for r in rows:
@@ -195,18 +222,20 @@ def chessboard(
             cnt_vote_for,
             has_owner_ed,
             has_account_ed,
+            cnt_active_green,
+            cnt_vote_for_green,
             has_tg,
             has_email,
         ) = r
-        # contact_state — раскраска по позиции ОСС и ЭД:
-        #   full        — все активные собственники голосуют «ЗА»
-        #   vote_for    — хотя бы один собственник голосует «ЗА» (но не все)
-        #   registered  — хотя бы один собственник с подтверждённой собственностью в ЭД (owner), без голосов «ЗА»
+        # contact_state — раскраска по позиции ОСС и ЭД (full/vote_for по «зелёному» пулу: ЭД owner или paper)
+        #   full        — все из пула голосуют «ЗА»
+        #   vote_for    — часть из пула голосует «ЗА»
+        #   registered  — есть owner в ЭД, но нет «ЗА» от пула
         #   ed_account  — только аккаунт ЭД без подтверждённой собственности (account), без голосов «ЗА»
         #   none        — нет информации
-        if cnt_active > 0 and cnt_vote_for > 0 and cnt_vote_for >= cnt_active:
+        if cnt_active_green > 0 and cnt_vote_for_green >= cnt_active_green:
             state = "full"
-        elif cnt_vote_for and cnt_vote_for > 0:
+        elif cnt_vote_for_green and cnt_vote_for_green > 0:
             state = "vote_for"
         elif bool(has_owner_ed):
             state = "registered"
@@ -238,6 +267,7 @@ def chessboard(
 
     ratio = (area_voted_for / total_area) if total_area > 0 else 0.0
     entrance_ed_ratio = (area_registered_ed / total_area) if total_area > 0 else 0.0
+    entrance_ed_any_ratio = (area_registered_ed_any / total_area) if total_area > 0 else 0.0
 
     return {
         "entrance": entrance,
@@ -246,6 +276,8 @@ def chessboard(
         "entrance_ratio": round(ratio, 4),
         "entrance_area_registered_ed": round(area_registered_ed, 2),
         "entrance_ed_ratio": round(entrance_ed_ratio, 4),
+        "entrance_area_registered_ed_any": round(area_registered_ed_any, 2),
+        "entrance_ed_any_ratio": round(entrance_ed_any_ratio, 4),
         "floors": floors_out,
     }
 
