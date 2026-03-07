@@ -11,7 +11,7 @@
 | **Frontend** | React 18, Vite, react-router-dom. SPA: каскадные фильтры помещений, форма анкеты, админ-разделы. |
 | **Backend** | Python 3.11, FastAPI, Uvicorn. Модули: auth (Telegram OAuth + JWT), импорт реестра, контакты, валидация, аудит. |
 | **Бот** | Python 3.12, aiogram 3.x, webhook. FSM в SQLite (volume `bot_data`), HTTP-клиент к backend по внутренней сети Docker. |
-| **БД** | PostgreSQL 15+. Таблицы: `admins`, `premises`, `contacts` (ПДн зашифрованы, Blind Index), `oss_voting`, `audit_log`, `premise_type_aliases`, `bot_unrecognized`. |
+| **БД** | PostgreSQL 15+. Таблицы: `admins`, `premises`, `contacts` (ПДн зашифрованы, Blind Index), `oss_voting`, `audit_log`, `export_watermarks`, `premise_type_aliases`, `bot_unrecognized`. |
 | **Инфра** | Docker Compose (frontend, backend, db, bot). Публичный вход — **Nginx на хосте**; порты контейнеров только localhost (8080 → frontend, 8000 → backend, 8443 → bot/webhook). |
 
 Детали: [docs/arch.md](docs/arch.md).
@@ -47,16 +47,11 @@ mkd-contacts/
 │   │       ├── submit.py       # POST /api/submit — приём анкеты (публично)
 │   │       ├── bot.py          # /api/bot/* — эндпоинты для Telegram-бота (опрос собственников)
 │   │       ├── admin_contacts.py # /api/admin/contacts — контакты, смена статуса (VAL-01)
-│   │       ├── import_register.py # /api/admin/import/* — реестр, контакты, шаблон XLSX
-│   │       ├── audit.py        # /api/admin/audit — просмотр лога
+│   │       ├── import_register.py # /api/admin/import/* — реестр, контакты, шаблон по подъезду и по всему дому (суперадмин)
+│   │       ├── audit.py        # /api/admin/audit — просмотр лога и экспорт XLSX
 │   │       └── quorum.py       # /api/buildings/{id}/quorum — расчёт кворума
 │   ├── alembic/
-│   │   └── versions/           # Миграции (LOST-01)
-│   │       ├── 001_admins_premises_contacts_oss_voting.py
-│   │       ├── 002_audit_log.py
-│   │       ├── 003_*.py, 004_*.py, 005_admins_login_password.py
-│   │       ├── 006_admins_full_name_premises.py  # ФИО и помещение для админов
-│   │       └── 008_bot_tables.py  # BOT-01..04: contacts.source, premise_type_aliases, bot_unrecognized
+│   │   └── versions/           # Миграции (LOST-01): 001–011 (схема, audit, consent, bot, export_watermarks, …)
 │   ├── entrypoint.sh           # При старте: alembic upgrade head, затем uvicorn
 │   ├── Dockerfile
 │   └── requirements.txt
@@ -89,14 +84,15 @@ mkd-contacts/
 │   │   │   ├── Policy.jsx       # /policy — политика конфиденциальности, раздел 9 — список админов
 │   │   │   ├── Login.jsx        # /login — вход Telegram / логин-пароль
 │   │   │   ├── AuthCallback.jsx # /auth/callback — callback после Telegram
-│   │   │   ├── Upload.jsx       # /upload — загрузка реестра/контактов (админ)
+│   │   │   ├── Upload.jsx       # /upload — загрузка реестра/контактов, шаблоны (редирект на /login без JWT)
 │   │   │   ├── AdminContacts.jsx    # /admin/contacts — добавление/редактирование контакта
 │   │   │   ├── AdminContactsList.jsx # /admin/contacts/list — список, смена статуса
-│   │   │   ├── AuditLog.jsx     # /admin/audit
+│   │   │   ├── AuditLog.jsx     # /admin/audit — лог, экспорт XLSX
+│   │   │   ├── AdminConsent.jsx # /admin/consent — согласие с Политикой (ADM-09)
 │   │   │   ├── SuperadminAdmins.jsx # /admin/superadmin — белый список админов, ФИО/помещение
 │   │   │   ├── BotAliases.jsx       # /admin/bot-aliases — словарь синонимов типов помещений (бот)
-│   │   │   └── BotUnrecognized.jsx  # /admin/bot-unrecognized — лог нераспознанных вводов бота
-│   │   │   ├── ChangePassword.jsx   # /admin/change-password
+│   │   │   ├── BotUnrecognized.jsx  # /admin/bot-unrecognized — лог нераспознанных вводов бота
+│   │   │   └── ChangePassword.jsx   # /admin/change-password
 │   │   ├── components/          # TelegramIcon и др.
 │   │   └── utils/               # phoneFormat, entranceLabel
 │   ├── Dockerfile               # Сборка Vite, Nginx раздаёт статику
@@ -116,8 +112,9 @@ mkd-contacts/
 │   │   ├── 05-add-contacts.md  # FE-03, FE-04, форма анкеты, Policy (SR-FE04-007, SR-FE04-013)
 │   │   ├── 06-validation.md    # VAL-01, CORE-02
 │   │   ├── 07-audit-ratelimit.md, 08-core04-quorum.md
-│   │   ├── 09-admin-login-password.md, 10-import-contacts.md, 11-adm02-adm05-*.md
-│   │   ├── 98-backlog.md      # Фичи в бэклоге
+│   │   ├── 09-admin-login-password.md … 15-bot-telegram.md
+│   │   ├── 97-cancelled.md    # Отменённые фичи (FE-01)
+│   │   ├── 98-backlog.md      # Бэклог (OPS-01…03, CORE-06)
 │   │   └── 99-summary.md      # Итоговая сводка
 │   └── deploy/                 # Пошаговое развёртывание
 │       ├── 01-bootstrap.md     # Быстрый старт, .env, Nginx, docker compose up
@@ -157,11 +154,12 @@ mkd-contacts/
 
 | Задача | Где смотреть |
 |--------|----------------|
-| Требования к фиче, коду | [docs/srs/00-INDEX.md](docs/srs/00-INDEX.md) → нужный модуль SRS (03–11, 98) |
+| Требования к фиче, коду | [docs/srs/00-INDEX.md](docs/srs/00-INDEX.md) → модули SRS (02–15, 97, 98) |
 | Реализовано ли по SRS | [docs/feature-list.md](docs/feature-list.md) |
 | API-эндпоинты | [backend/app/main.py](backend/app/main.py) (подключение роутеров), папка [backend/app/routers/](backend/app/routers/) |
 | Схема БД, миграции | [backend/alembic/versions/](backend/alembic/versions/), SRS [03-basic-admin.md](docs/srs/03-basic-admin.md) |
 | Страницы и маршруты фронта | [frontend/src/App.jsx](frontend/src/App.jsx), [frontend/src/pages/](frontend/src/pages/), [docs/site-map.md](docs/site-map.md) |
 | Развёртывание с нуля | [docs/deploy/01-bootstrap.md](docs/deploy/01-bootstrap.md) |
 | Настройка Telegram-бота | [docs/deploy/05-bot-setup.md](docs/deploy/05-bot-setup.md) |
+| Резервное копирование (OPS-01) | Перед деплоем: [scripts/deploy-release.sh](scripts/deploy-release.sh) (дамп в `backups/`). Ежедневный бэкап — скрипт вне репо (напр. `~/mkd-contacts-backup/`: SSH + pg_dump, ротация, cron). |
 | Архитектура и стек | [docs/arch.md](docs/arch.md) |
