@@ -131,7 +131,7 @@ sudo ln -sf /etc/nginx/sites-available/mkd-contacts /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Проверка: `curl -s http://213.171.31.180/ | head -5`, `curl -s http://213.171.31.180/api/health`.
+Проверка: `curl -s http://213.171.31.180/ | head -5`, `curl -s http://213.171.31.180/api/health`. Эндпоинт `/api/health` проверяет доступность БД (OPS-03, [16-ops02-ops03-graceful-uptime.md](../srs/16-ops02-ops03-graceful-uptime.md)): 200 при успехе, 503 при недоступности БД. Настройка uptime-check и алертов в Telegram — [08-uptime-check.md](08-uptime-check.md).
 
 ### 2.3 Обновление (релиз) при деплое «сборка на сервере»
 
@@ -263,7 +263,7 @@ docker compose exec -T db psql -U mkd mkd_contacts < backup_YYYYMMDD_HHMMSS.sql
 docker compose up -d
 ```
 
-Полную процедуру бэкапов (частота, хранение, S3 и т.д.) см. в бэклоге (OPS-01).
+Полную процедуру бэкапов (частота, хранение, S3 и т.д.) см. в [98-backlog.md](../srs/98-backlog.md) (OPS-01).
 
 ---
 

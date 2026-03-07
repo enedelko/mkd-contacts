@@ -85,6 +85,22 @@ services:
       - backend
     restart: unless-stopped
 
+  # OPS-03: проверка доступности приложения, при двух подряд неуспехах — алерт в Telegram
+  uptime-check:
+    build:
+      context: .
+      dockerfile: uptime-check/Dockerfile
+    container_name: mkd-uptime-check
+    environment:
+      TZ: Europe/Moscow
+      UPTIME_CHECK_URL: ${UPTIME_CHECK_URL:-http://backend:8000/health}
+      UPTIME_CHECK_INTERVAL_SEC: ${UPTIME_CHECK_INTERVAL_SEC:-600}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${UPTIME_TELEGRAM_CHAT_ID:-}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   pgdata:
     # Персистентные данные PostgreSQL (SR-BE01-002)

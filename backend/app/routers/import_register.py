@@ -79,7 +79,7 @@ def import_register(
         report = run_import(rows, client_ip=client_ip)
     except Exception as e:
         logger.exception("Import failed")
-        raise HTTPException(status_code=503, detail="Database unavailable or import failed") from e
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
     logger.info("Import by sub=%s: accepted=%s rejected=%s", payload.get("sub"), report["accepted"], report["rejected"])
     return report
@@ -150,7 +150,7 @@ def import_contacts(
         report = run_import_contacts_only(rows, client_ip=client_ip)
     except Exception as e:
         logger.exception("Contacts import failed")
-        raise HTTPException(status_code=503, detail="Database unavailable or import failed") from e
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
     logger.info("Contacts import by sub=%s: accepted=%s rejected=%s", payload.get("sub"), report["accepted"], report["rejected"])
     return report
@@ -173,7 +173,7 @@ def contacts_template(
         content, row_count = build_contacts_template_xlsx(entrance, canary_row=canary_row)
     except Exception as e:
         logger.exception("Contacts template failed: %s", e)
-        raise HTTPException(status_code=503, detail="Template generation failed") from e
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
     if row_count > 0:
         with get_db() as db:
@@ -219,7 +219,7 @@ def contacts_template_full(
         content, row_count = build_contacts_template_xlsx_full_house(canary_row=canary_row)
     except Exception as e:
         logger.exception("Contacts template full house failed: %s", e)
-        raise HTTPException(status_code=503, detail="Template generation failed") from e
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
     if row_count > 0:
         with get_db() as db:

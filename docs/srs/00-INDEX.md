@@ -53,7 +53,7 @@ FE-03  ──→  FE-04  ──→  CORE-02  ──→  VAL-01
               /submit)
 ```
 
-FE-03 и FE-04 опираются на реестр помещений (CORE-01). Отправка формы (FE-04) проходит через CORE-02. VAL-01 и модерация — после появления контактов. Telegram-бот (BOT-01…04) — в [15-bot-telegram.md](15-bot-telegram.md). Отменённые фичи — в [97-cancelled.md](97-cancelled.md). Бэклог (OPS-01 реализован; OPS-02, OPS-03) — в [98-backlog.md](98-backlog.md).
+FE-03 и FE-04 опираются на реестр помещений (CORE-01). Отправка формы (FE-04) проходит через CORE-02. VAL-01 и модерация — после появления контактов. Telegram-бот (BOT-01…04) — в [15-bot-telegram.md](15-bot-telegram.md). Отменённые фичи — в [97-cancelled.md](97-cancelled.md). OPS-01 — в [98-backlog.md](98-backlog.md); OPS-02 и OPS-03 — в [16-ops02-ops03-graceful-uptime.md](16-ops02-ops03-graceful-uptime.md).
 
 ---
 
@@ -72,10 +72,11 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | 5 | [Валидация](06-validation.md) | VAL-01, CORE-02 | Смена статуса контакта, валидация и лимиты, дедупликация |
 | 6 | [Кворум (базовый расчёт)](08-core04-quorum.md) | CORE-04 | API расчёта долей, отображение на главной |
 | 7 | [Отменённые фичи](97-cancelled.md) | FE-01, CORE-06 | Фичи, от решения по которым отказались |
-| 8 | [Бэклог](98-backlog.md) | OPS-01 (готово), OPS-02, OPS-03 | Резервы (OPS-01 реализован), отказоустойчивость, мониторинг |
+| 8 | [Бэклог](98-backlog.md) | OPS-01 (готово) | Резервы (OPS-01 реализован) |
 | 13 | [EntrancePicker и шахматка](13-home-premises-chessboard.md) | UI-01, FE-06 | Компонент выбора подъезда; таблица этажей на главной, клик → форма/админка |
 | 14 | [Cross-object: sessionStorage и Nudge](14-fe05-cross-object-session.md) | FE-05 | sessionStorage для автозаполнения между помещениями, Nudge-модал после анкеты |
 | 15 | [Telegram-бот](15-bot-telegram.md) | BOT-01…04 | Поиск помещения, анкета в боте, личный кабинет, синхронизация с вебом |
+| 16 | [Отказоустойчивость и мониторинг](16-ops02-ops03-graceful-uptime.md) | OPS-02, OPS-03 | Страницы-заглушки при 503, uptime-check и уведомление админов |
 | — | [Итоговая сводка (Action Items)](99-summary.md) | — | Вопросы к бизнесу, допущения, риски |
 
 ---
@@ -97,7 +98,8 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | ADM-09 | [12-admin-policy-consent.md](12-admin-policy-consent.md) |
 | FE-05 | [14-fe05-cross-object-session.md](14-fe05-cross-object-session.md) |
 | FE-01, CORE-06 | [97-cancelled.md](97-cancelled.md) |
-| OPS-01, OPS-02, OPS-03 | [98-backlog.md](98-backlog.md) |
+| OPS-01 | [98-backlog.md](98-backlog.md) |
+| OPS-02, OPS-03 | [16-ops02-ops03-graceful-uptime.md](16-ops02-ops03-graceful-uptime.md) |
 | BOT-01…04 | [15-bot-telegram.md](15-bot-telegram.md) |
 | UI-01, FE-06 | [13-home-premises-chessboard.md](13-home-premises-chessboard.md) |
 | Итоговая сводка | [99-summary.md](99-summary.md) |

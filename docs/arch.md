@@ -32,4 +32,4 @@
 * **Хост:** Nginx слушает 80 (и при необходимости 443). Проксирует `/` → 127.0.0.1:8080 (контейнер frontend), `/api/` → 127.0.0.1:8000 (контейнер backend). Пример конфига: [docs/deploy/nginx-host.example.conf](deploy/nginx-host.example.conf).
 * **Контейнеры:** `frontend` (Nginx + статика React, порт 80 → 127.0.0.1:8080), `backend` (Uvicorn, порт 8000 → 127.0.0.1:8000), `db` (PostgreSQL 15, порт 5432 только во внутренней сети). Размещение — только в РФ (152-ФЗ); секреты и мастер-ключ шифрования не в репозитории — см. [01-bootstrap.md](deploy/01-bootstrap.md).
 
-Архитектура может уточняться в соответствии с SRS и бэклогом ([docs/srs/98-backlog.md](srs/98-backlog.md), [99-summary.md](srs/99-summary.md)).
+Архитектура может уточняться в соответствии с SRS и бэклогом ([docs/srs/98-backlog.md](srs/98-backlog.md), [docs/srs/16-ops02-ops03-graceful-uptime.md](srs/16-ops02-ops03-graceful-uptime.md) — OPS-02, OPS-03, [99-summary.md](srs/99-summary.md)).

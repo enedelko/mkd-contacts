@@ -267,18 +267,46 @@ function Home() {
   )
 }
 
+/** OPS-02: заглушка при 503 (SR-OPS02-002, SR-OPS02-003) — статичный текст, без API */
+function ServiceUnavailableStub() {
+  return (
+    <div className="app-body" style={{ padding: '2rem', textAlign: 'center' }}>
+      <p style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Сервис временно недоступен.</p>
+      <p style={{ color: '#666' }}>Попробуйте обновить страницу позже.</p>
+      <button type="button" onClick={() => window.location.reload()} style={{ marginTop: '1rem', padding: '0.5rem 1rem' }}>
+        Обновить страницу
+      </button>
+    </div>
+  )
+}
+
 function App() {
   const [token, setToken] = useState(getToken)
+  const [serviceUnavailable, setServiceUnavailable] = useState(false)
   useEffect(() => {
     const onAuthChange = () => setToken(getToken())
     window.addEventListener('mkd-auth-change', onAuthChange)
-    // Проверять срок действия токена каждые 30 секунд
+    const on503 = () => setServiceUnavailable(true)
+    window.addEventListener('mkd-503', on503)
     const interval = setInterval(() => setToken(getToken()), 30_000)
     return () => {
       window.removeEventListener('mkd-auth-change', onAuthChange)
+      window.removeEventListener('mkd-503', on503)
       clearInterval(interval)
     }
   }, [])
+  if (serviceUnavailable) {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <div className="app-header-inner">
+            <h1>Кворум-МКД</h1>
+          </div>
+        </header>
+        <ServiceUnavailableStub />
+      </div>
+    )
+  }
   return (
     <div className="app">
       <header className="app-header">
