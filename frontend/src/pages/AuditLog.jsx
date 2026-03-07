@@ -65,6 +65,7 @@ export default function AuditLog() {
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState(null)
   const [offset, setOffset] = useState(0)
 
@@ -93,6 +94,7 @@ export default function AuditLog() {
       if (filterToDate) params.set('to_date', filterToDate)
       params.set('limit', String(PAGE_SIZE))
       params.set('offset', String(offset))
+
       const res = await fetch(`/api/admin/audit?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -123,6 +125,43 @@ export default function AuditLog() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
+
+  function buildFilterParams() {
+    const params = new URLSearchParams()
+    if (filterEntity) params.set('entity_type', filterEntity)
+    if (filterAction) params.set('action', filterAction)
+    if (filterUser.trim()) params.set('user_id', filterUser.trim())
+    if (filterEntityId.trim()) params.set('entity_id', filterEntityId.trim())
+    if (filterFromDate) params.set('from_date', filterFromDate)
+    if (filterToDate) params.set('to_date', filterToDate)
+    return params
+  }
+
+  async function handleExport() {
+    if (!token) return
+    setExporting(true)
+    try {
+      const params = buildFilterParams()
+      const res = await fetch(`/api/admin/audit/export?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        setError('Ошибка экспорта')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'audit_log.xlsx'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err.message || 'Ошибка экспорта')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   function renderEntityCell(a) {
     const isContactLink = a.entity_type === 'contact' && a.entity_id && /^\d+$/.test(a.entity_id)
@@ -221,6 +260,9 @@ export default function AuditLog() {
         </label>
         <button type="button" onClick={() => { setOffset(0); fetchAudit() }} disabled={loading}>
           {loading ? 'Загрузка…' : 'Обновить'}
+        </button>
+        <button type="button" onClick={handleExport} disabled={exporting || loading} className="export-btn">
+          {exporting ? 'Экспорт…' : 'Экспорт в Excel'}
         </button>
       </div>
 

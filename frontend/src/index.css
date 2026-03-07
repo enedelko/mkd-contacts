@@ -130,6 +130,9 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .audit-log-page .filters-bar input,
 .audit-log-page .filters-bar select { margin-top: 0.25rem; padding: 0.3rem 0.5rem; }
 .audit-log-page .filters-bar button { padding: 0.4rem 1rem; cursor: pointer; }
+.audit-log-page .filters-bar .export-btn { background: #1b5e20; color: #fff; border: none; border-radius: 3px; }
+.audit-log-page .filters-bar .export-btn:hover { background: #2e7d32; }
+.audit-log-page .filters-bar .export-btn:disabled { opacity: 0.5; cursor: default; }
 .audit-log-page .total-info { color: #555; font-size: 0.9rem; }
 .audit-log-page .list-error { color: #c62828; }
 .audit-log-page .empty-message { color: #666; }
