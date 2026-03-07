@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Обёртка для бэкапа БД: запускается от имени владельца приложения (sudo -u appuser),
 # читает минимальный конфиг (путь к приложению, POSTGRES_USER, POSTGRES_DB) и выполняет pg_dump.
+# При каждом запуске отправляет оповещение в Telegram (успех/ошибка); параметры в .env приложения (TELEGRAM_BOT_TOKEN, SSH_NOTIFY_CHAT_ID или TELEGRAM_CHAT_ID).
 # Установка на ПРОМ: cp scripts/remote/mkd-backup-dump /usr/local/bin/ && chmod 755 /usr/local/bin/mkd-backup-dump
 # Конфиг: /etc/mkd-backup.conf (см. mkd-backup.conf.example)
 
@@ -19,4 +20,39 @@ POSTGRES_USER="${POSTGRES_USER:-mkd}"
 POSTGRES_DB="${POSTGRES_DB:-mkd_contacts}"
 
 cd "$APP_PATH" || exit 1
-exec docker compose exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"
+
+DUMP_ERR=$(mktemp)
+trap 'rm -f "$DUMP_ERR"' EXIT
+set +e
+docker compose exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" 2>"$DUMP_ERR"
+DUMP_EXIT=$?
+set -e
+
+# Загрузка переменных из .env приложения (только нужные для Telegram)
+ENV_FILE="$APP_PATH/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  while IFS= read -r line; do
+    [[ "$line" =~ ^#.*$ ]] && continue
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    if [[ "$line" =~ ^(TELEGRAM_BOT_TOKEN|SSH_NOTIFY_CHAT_ID|TELEGRAM_CHAT_ID)= ]]; then
+      export "$line"
+    fi
+  done < "$ENV_FILE"
+fi
+
+CHAT_ID="${SSH_NOTIFY_CHAT_ID:-$TELEGRAM_CHAT_ID}"
+if [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$CHAT_ID" ]]; then
+  TIME=$(date +%H:%M:%S 2>/dev/null || date +%T 2>/dev/null || echo "??:??:??")
+  HOSTNAME=$(hostname -s 2>/dev/null || echo "unknown")
+  if [[ "$DUMP_EXIT" -eq 0 ]]; then
+    MSG="${TIME}: ${HOSTNAME} бэкап: успех"
+  else
+    ERR_TEXT=$(head -1 "$DUMP_ERR" 2>/dev/null | tr -d '\n\r' | head -c 200)
+    MSG="${TIME}: ${HOSTNAME} бэкап: ошибка, код ${DUMP_EXIT} ${ERR_TEXT}"
+  fi
+  msg_enc=$(printf '%s' "$MSG" | sed "s/ /%20/g; s/:/%3A/g; s/@/%40/g; s/,/%2C/g; s/\//%2F/g; s/?/%3F/g; s/&/%26/g")
+  url="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${msg_enc}"
+  curl -s -o /dev/null --connect-timeout 3 --max-time 5 "$url" 2>/dev/null || true
+fi
+
+exit "$DUMP_EXIT"
