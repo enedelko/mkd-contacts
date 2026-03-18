@@ -166,16 +166,31 @@ def change_password(
     return Response(status_code=204)
 
 
+def _bot_id_from_token(token: str) -> int | None:
+    """Числовой id бота = префикс токена до ':' (формат BotFather). Без запроса к api.telegram.org."""
+    if not token or ":" not in token:
+        return None
+    prefix = token.split(":", 1)[0]
+    if prefix.isdigit():
+        return int(prefix)
+    return None
+
+
 @router.get("/telegram/bot-id")
 def telegram_bot_id() -> JSONResponse:
     """
-    Возвращает числовой id бота для построения URL oauth.telegram.org (вход в popup, без iframe).
-    Вызов getMe через Telegram Bot API.
+    Возвращает числовой id бота для URL oauth.telegram.org (вход в popup).
+    Обычно id берётся из префикса TELEGRAM_BOT_TOKEN — без сетевого вызова (избегает 503 при таймаутах до Telegram).
+    Если префикс не числовой — fallback: getMe.
     """
     if not TELEGRAM_BOT_TOKEN:
         return JSONResponse(status_code=503, content={"detail": "Telegram bot not configured"})
+    parsed = _bot_id_from_token(TELEGRAM_BOT_TOKEN.strip())
+    if parsed is not None:
+        return JSONResponse(content={"bot_id": parsed, "bot_username": None})
     try:
-        with httpx.Client(timeout=10.0) as client:
+        timeout = httpx.Timeout(20.0, connect=15.0)
+        with httpx.Client(timeout=timeout) as client:
             r = client.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getMe")
             data = r.json()
         if not data.get("ok") or not data.get("result"):

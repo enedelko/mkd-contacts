@@ -747,7 +747,8 @@ def _format_phone_display(phone: str | None) -> str:
 def build_contacts_template_xlsx(entrance: str, canary_row: dict[str, Any] | None = None) -> tuple[bytes, int]:
     """
     ADM-08: Сформировать XLSX-шаблон контактов по подъезду.
-    Одна строка на контакт; при отсутствии контакта — одна строка с пустыми полями контакта.
+    Одна строка на контакт (только pending/validated; inactive не выгружаются).
+    Если у помещения только неактуальные контакты — одна строка с пустыми полями контакта.
     canary_row: опционально dict с premise_id, phone, canary_telegram_id, how_to_address — вставляется как строка по этому помещению.
     Возвращает (содержимое файла, количество строк данных).
     """
@@ -762,6 +763,7 @@ def build_contacts_template_xlsx(entrance: str, canary_row: dict[str, Any] | Non
             "o.barrier_vote, o.vote_format, c.registered_in_ed "
             "FROM premises p "
             "LEFT JOIN contacts c ON c.premise_id = p.cadastral_number "
+            "AND c.status IN ('pending', 'validated') "
             "LEFT JOIN oss_voting o ON o.contact_id = c.id "
             "WHERE p.entrance = :e "
             "ORDER BY p.premises_type NULLS LAST, "
@@ -882,6 +884,7 @@ def build_contacts_template_xlsx(entrance: str, canary_row: dict[str, Any] | Non
 def build_contacts_template_xlsx_full_house(canary_row: dict[str, Any] | None = None) -> tuple[bytes, int]:
     """
     Шаблон контактов по всем помещениям дома (без фильтра по подъезду).
+    Контакты inactive не выгружаются; только inactive — как пустое помещение.
     Лимит FULL_HOUSE_ROW_LIMIT строк. Один canary по случайному помещению — опционально (canary_row).
     Возвращает (содержимое файла, количество строк данных).
     """
@@ -895,6 +898,7 @@ def build_contacts_template_xlsx_full_house(canary_row: dict[str, Any] | None = 
             "o.barrier_vote, o.vote_format, c.registered_in_ed "
             "FROM premises p "
             "LEFT JOIN contacts c ON c.premise_id = p.cadastral_number "
+            "AND c.status IN ('pending', 'validated') "
             "LEFT JOIN oss_voting o ON o.contact_id = c.id "
             "ORDER BY p.premises_type NULLS LAST, "
             "(NULLIF(TRIM(REGEXP_REPLACE(COALESCE(p.premises_number, ''), '[^0-9].*', '')), '')::int) NULLS LAST, "
