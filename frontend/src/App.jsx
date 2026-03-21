@@ -68,7 +68,7 @@ const STATE_BG = {
 }
 
 function Home() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const token = getToken()
 
@@ -78,7 +78,8 @@ function Home() {
   const [quorumError, setQuorumError] = useState(false)
 
   // --- Шахматка ---
-  const [entrance, setEntrance] = useState(null)
+  const entranceParam = (searchParams.get('entrance') || '').trim()
+  const entrance = entranceParam || null
   const [board, setBoard] = useState(null)
   const [boardLoading, setBoardLoading] = useState(false)
   const [boardError, setBoardError] = useState(false)
@@ -125,6 +126,17 @@ function Home() {
       .catch(() => { setBoard(null); setBoardError(true) })
       .finally(() => setBoardLoading(false))
   }, [entrance])
+
+  const updateEntranceInQuery = (nextEntrance) => {
+    const nextParams = new URLSearchParams(searchParams)
+    const normalizedEntrance = (nextEntrance || '').trim()
+    if (normalizedEntrance) {
+      nextParams.set('entrance', normalizedEntrance)
+    } else {
+      nextParams.delete('entrance')
+    }
+    setSearchParams(nextParams)
+  }
 
   // Клик по ячейке помещения
   const handleCellClick = (premise, floor, premisesType) => {
@@ -193,8 +205,8 @@ function Home() {
       <p>Выберите помещение, чтобы оставить контакты и выразить свою позицию по ОСС.</p>
       <EntrancePicker
         selected={entrance}
-        onSelect={(ent) => setEntrance(ent)}
-        onReset={() => setEntrance(null)}
+        onSelect={(ent) => updateEntranceInQuery(ent)}
+        onReset={() => updateEntranceInQuery(null)}
         prompt="Выберите подъезд для просмотра помещений."
       />
 
