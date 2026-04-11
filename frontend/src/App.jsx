@@ -67,10 +67,18 @@ const STATE_BG = {
   full: '#66bb6a',
 }
 
+/** FE-06: упрощённая палитра для гостей (без JWT): один зелёный для «ЗА», салатовый вместо жёлтого для ЭД. */
+const STATE_BG_GUEST = {
+  ...STATE_BG,
+  registered: '#dcedc8',
+  vote_for: STATE_BG.full,
+}
+
 function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const token = getToken()
+  const stateBg = token ? STATE_BG : STATE_BG_GUEST
 
   // --- Кворум ---
   const [quorum, setQuorum] = useState(null)
@@ -255,7 +263,7 @@ function Home() {
                         key={p.premise_id}
                         type="button"
                         className={`chessboard-cell state-${p.contact_state}`}
-                        style={{ background: STATE_BG[p.contact_state] || STATE_BG.none }}
+                        style={{ background: stateBg[p.contact_state] || stateBg.none }}
                         onClick={() => handleCellClick(p, fl.floor, p.premises_type)}
                         title={`${p.premises_type} ${p.premises_number}`}
                       >
@@ -277,11 +285,11 @@ function Home() {
           {/* Легенда */}
           <div className="chessboard-legend" aria-label="Обозначения">
             <span className="legend-title">Обозначения:</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.none }} />Нет информации</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.ed_account }} />ЭД без подтверждённой собственности</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.registered }} />Собственность подтверждена в ЭД</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.vote_for }} />Есть голос «ЗА»</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: STATE_BG.full }} />Все голосуют «ЗА»</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.none }} />Нет информации</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.ed_account }} />ЭД без подтверждённой собственности</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.registered }} />Собственность подтверждена в ЭД</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.vote_for }} />Есть голос «ЗА»</span>
+            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.full }} />Все голосуют «ЗА»</span>
             <span className="legend-item"><TelegramIcon width={14} height={14} /> Есть Telegram / телефон</span>
             <span className="legend-item"><span className="cell-email">✉</span> Только email</span>
           </div>
