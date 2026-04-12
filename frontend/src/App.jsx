@@ -234,7 +234,7 @@ function Home() {
           className={`chessboard ${token ? 'chessboard--auth' : 'chessboard--guest'}`}
           aria-label="Шахматка помещений"
         >
-          <h2 className="chessboard-print-title">Подтверждение собственности в ЭД</h2>
+          <h2 className="chessboard-print-title chessboard-sheet-heading">Подтверждение собственности в ЭД</h2>
           {board.floors.map((fl) => {
             const chunks = []
             for (let i = 0; i < fl.premises.length; i += CHESSBOARD_ROW_LIMIT) {
@@ -242,9 +242,14 @@ function Home() {
             }
             return (
               <div key={fl.floor} className="chessboard-floor">
-                <div className="chessboard-floor-label">Этаж {fl.floor}</div>
                 {chunks.map((chunk, ci) => (
                   <div key={ci} className="chessboard-row">
+                    <span
+                      className="chessboard-row-floor chessboard-sheet-heading"
+                      aria-label={`Этаж ${fl.floor}`}
+                    >
+                      {fl.floor}
+                    </span>
                     {chunk.map((p) => (
                       <button
                         key={p.premise_id}

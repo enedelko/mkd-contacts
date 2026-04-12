@@ -202,22 +202,43 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   --chessboard-cell-border: 1px;
   margin: 1rem 0;
 }
+/* Типографика как у заголовка листа (печать и экран) */
+.chessboard-sheet-heading {
+  font-size: 2rem;
+  font-weight: 200;
+  line-height: 1.2;
+  color: #000;
+}
 .chessboard-print-title {
   display: none;
   margin: 0 0 0.75rem;
-  font-size: 1.05rem;
-  font-weight: 600;
 }
 .chessboard-floor { margin-bottom: 0.5rem; }
-.chessboard-floor-label { font-weight: 600; font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
-.chessboard-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px; }
+.chessboard-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+.chessboard-row-floor {
+  flex-shrink: 0;
+  align-self: center;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  min-width: 2.25ch;
+  text-align: right;
+}
 .chessboard-cell {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 72px;
+  width: 68px;
   min-height: 56px;
   border: var(--chessboard-cell-border) solid #bdbdbd;
   border-radius: 4px;
@@ -250,8 +271,20 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .chessboard--guest .chessboard-cell.state-full,
 .chessboard--guest .legend-swatch.state-vote_for,
 .chessboard--guest .legend-swatch.state-full { background: #66bb6a; }
-.cell-type { font-size: 0.6rem; color: #666; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.cell-number { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
+.chessboard-cell .cell-type {
+  font-size: 0.6rem;
+  color: #666;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.chessboard-cell .cell-number {
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
 .cell-icons { display: flex; gap: 2px; align-items: center; min-height: 16px; }
 .cell-email { font-size: 0.85rem; line-height: 1; }
 .chessboard-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 1rem; padding: 0.5rem 0.75rem; background: #f5f5f5; border-radius: 6px; font-size: 0.8rem; color: #444; }
@@ -291,19 +324,17 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     margin: 0 !important;
     padding: 0 !important;
   }
+  .chessboard-sheet-heading {
+    font-size: 17.16pt !important;
+    font-weight: 200;
+    color: #000;
+  }
   .chessboard-print-title {
     display: block !important;
-    color: #000;
     margin: 0 0 3mm !important;
-    font-size: 17.16pt !important;
-    font-weight: 600;
   }
   .chessboard {
     margin: 0 !important;
-  }
-  /* Печать A4: без подписей этажей; высота ряда уменьшена на 15%, шрифты ячеек +20% */
-  .chessboard-floor-label {
-    display: none !important;
   }
   .chessboard-floor {
     margin-bottom: 0 !important;
@@ -314,11 +345,12 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   }
   /* Высота ячейки: 10.2mm × 0.95; шрифты в ячейках +20% */
   .chessboard-cell {
-    --cb-print-w: 17mm;
+    /* ~68px при типичном DPI */
+    --cb-print-w: 18mm;
     --cb-print-h: 9.69mm;
     /* длина штрихов креста: доля от hypot(W,H) по катетам ячейки */
     --cb-cross-scale: 0.85;
-    border-color: #000 !important;
+    border: 0.5px solid #000 !important;
     background: #fff !important;
     box-shadow: none !important;
     width: var(--cb-print-w) !important;
@@ -326,7 +358,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     height: var(--cb-print-h) !important;
     max-height: var(--cb-print-h) !important;
     padding: 0.25mm 0.5mm !important;
-    border-radius: 1px !important;
+    border-radius: 0.5px !important;
   }
   .chessboard-cell .cell-type {
     font-size: 6pt !important;
@@ -339,6 +371,19 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     font-weight: 700;
     color: #000 !important;
   }
+  /* Помещения с подтверждением в ЭД (крест): тише типографика */
+  .chessboard-cell.state-registered .cell-type,
+  .chessboard-cell.state-vote_for .cell-type,
+  .chessboard-cell.state-full .cell-type {
+    font-size: 5pt !important;
+  }
+  .chessboard-cell.state-registered .cell-number,
+  .chessboard-cell.state-vote_for .cell-number,
+  .chessboard-cell.state-full .cell-number {
+    font-size: 7.5pt !important;
+    font-weight: 400 !important;
+    color: #333 !important;
+  }
   .chessboard-cell .cell-icons {
     display: none !important;
   }
@@ -346,7 +391,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     position: relative;
     z-index: 1;
   }
-  /* Крест: две линии под ±30°; длина = --cb-cross-scale × hypot(W,H) */
+  /* Крест: две линии под ±30°; длина = --cb-cross-scale × hypot(W,H); толщина как у рамки печати (0.5px) */
   .chessboard .chessboard-cell.state-registered::before,
   .chessboard .chessboard-cell.state-vote_for::before,
   .chessboard .chessboard-cell.state-full::before {
@@ -355,7 +400,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     left: 50%;
     top: 50%;
     width: calc(var(--cb-cross-scale) * hypot(var(--cb-print-w), var(--cb-print-h)));
-    height: var(--chessboard-cell-border);
+    height: 0.75px;
     background: #000;
     transform: translate(-50%, -50%) rotate(30deg);
     z-index: 0;
@@ -370,7 +415,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     left: 50%;
     top: 50%;
     width: calc(var(--cb-cross-scale) * hypot(var(--cb-print-w), var(--cb-print-h)));
-    height: var(--chessboard-cell-border);
+    height: 0.75px;
     background: #000;
     transform: translate(-50%, -50%) rotate(-30deg);
     z-index: 0;
