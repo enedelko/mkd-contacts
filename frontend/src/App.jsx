@@ -58,27 +58,10 @@ export function getRoleFromToken(t) {
 /** FE-06: Максимум ячеек в одной визуальной строке шахматки. */
 const CHESSBOARD_ROW_LIMIT = 9
 
-/** FE-06: цвета фона ячейки по позиции ОСС и статусу ЭД. */
-const STATE_BG = {
-  none: '#fff',
-  ed_account: '#ffe0b2',
-  registered: '#fff9c4',
-  vote_for: '#c8e6c9',
-  full: '#66bb6a',
-}
-
-/** FE-06: упрощённая палитра для гостей (без JWT): один зелёный для «ЗА», салатовый вместо жёлтого для ЭД. */
-const STATE_BG_GUEST = {
-  ...STATE_BG,
-  registered: '#dcedc8',
-  vote_for: STATE_BG.full,
-}
-
 function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const token = getToken()
-  const stateBg = token ? STATE_BG : STATE_BG_GUEST
 
   // --- Кворум ---
   const [quorum, setQuorum] = useState(null)
@@ -210,7 +193,7 @@ function Home() {
       </section>
 
       {/* SR-FE06-002: Выбор подъезда */}
-      <p>Выберите помещение, чтобы оставить контакты и выразить свою позицию по ОСС.</p>
+      <p className="home-premise-prompt">Выберите помещение, чтобы оставить контакты и выразить свою позицию по ОСС.</p>
       <EntrancePicker
         selected={entrance}
         onSelect={(ent) => updateEntranceInQuery(ent)}
@@ -247,7 +230,11 @@ function Home() {
       {boardError && !boardLoading && <p className="chessboard-error">Не удалось загрузить данные. Попробуйте ещё раз.</p>}
 
       {board && !boardLoading && (
-        <div className="chessboard" aria-label="Шахматка помещений">
+        <div
+          className={`chessboard ${token ? 'chessboard--auth' : 'chessboard--guest'}`}
+          aria-label="Шахматка помещений"
+        >
+          <h2 className="chessboard-print-title">Подтверждение собственности в ЭД</h2>
           {board.floors.map((fl) => {
             const chunks = []
             for (let i = 0; i < fl.premises.length; i += CHESSBOARD_ROW_LIMIT) {
@@ -263,7 +250,6 @@ function Home() {
                         key={p.premise_id}
                         type="button"
                         className={`chessboard-cell state-${p.contact_state}`}
-                        style={{ background: stateBg[p.contact_state] || stateBg.none }}
                         onClick={() => handleCellClick(p, fl.floor, p.premises_type)}
                         title={`${p.premises_type} ${p.premises_number}`}
                       >
@@ -285,11 +271,11 @@ function Home() {
           {/* Легенда */}
           <div className="chessboard-legend" aria-label="Обозначения">
             <span className="legend-title">Обозначения:</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.none }} />Нет информации</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.ed_account }} />ЭД без подтверждённой собственности</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.registered }} />Собственность подтверждена в ЭД</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.vote_for }} />Есть голос «ЗА»</span>
-            <span className="legend-item"><span className="legend-swatch" style={{ background: stateBg.full }} />Все голосуют «ЗА»</span>
+            <span className="legend-item"><span className="legend-swatch state-none" />Нет информации</span>
+            <span className="legend-item"><span className="legend-swatch state-ed_account" />ЭД без подтверждённой собственности</span>
+            <span className="legend-item"><span className="legend-swatch state-registered" />Собственность подтверждена в ЭД</span>
+            <span className="legend-item"><span className="legend-swatch state-vote_for" />Есть голос «ЗА»</span>
+            <span className="legend-item"><span className="legend-swatch state-full" />Все голосуют «ЗА»</span>
             <span className="legend-item"><TelegramIcon width={14} height={14} /> Есть Telegram / телефон</span>
             <span className="legend-item"><span className="cell-email">✉</span> Только email</span>
           </div>

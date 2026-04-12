@@ -197,13 +197,59 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .chessboard-loading { color: #666; }
 .chessboard-error { color: #c62828; }
 .chessboard-empty { color: #666; }
-.chessboard { margin: 1rem 0; }
+/* FE-06: шахматка — палитра в CSS, модификаторы guest/auth */
+.chessboard {
+  --chessboard-cell-border: 1px;
+  margin: 1rem 0;
+}
+.chessboard-print-title {
+  display: none;
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
 .chessboard-floor { margin-bottom: 0.5rem; }
 .chessboard-floor-label { font-weight: 600; font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
 .chessboard-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px; }
-.chessboard-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 72px; min-height: 56px; border: 1px solid #bdbdbd; border-radius: 4px; cursor: pointer; padding: 2px 4px; text-align: center; font-family: inherit; transition: box-shadow 0.15s; }
+.chessboard-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  min-height: 56px;
+  border: var(--chessboard-cell-border) solid #bdbdbd;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px 4px;
+  text-align: center;
+  font-family: inherit;
+  transition: box-shadow 0.15s;
+  background: #fff;
+}
 .chessboard-cell:hover { box-shadow: 0 0 0 2px #1976d2; }
 .chessboard-cell:focus-visible { outline: 2px solid #1976d2; outline-offset: 1px; }
+.chessboard--auth .chessboard-cell.state-none,
+.chessboard--auth .legend-swatch.state-none { background: #fff; }
+.chessboard--auth .chessboard-cell.state-ed_account,
+.chessboard--auth .legend-swatch.state-ed_account { background: #ffe0b2; }
+.chessboard--auth .chessboard-cell.state-registered,
+.chessboard--auth .legend-swatch.state-registered { background: #fff9c4; }
+.chessboard--auth .chessboard-cell.state-vote_for,
+.chessboard--auth .legend-swatch.state-vote_for { background: #c8e6c9; }
+.chessboard--auth .chessboard-cell.state-full,
+.chessboard--auth .legend-swatch.state-full { background: #66bb6a; }
+.chessboard--guest .chessboard-cell.state-none,
+.chessboard--guest .legend-swatch.state-none { background: #fff; }
+.chessboard--guest .chessboard-cell.state-ed_account,
+.chessboard--guest .legend-swatch.state-ed_account { background: #ffe0b2; }
+.chessboard--guest .chessboard-cell.state-registered,
+.chessboard--guest .legend-swatch.state-registered { background: #dcedc8; }
+.chessboard--guest .chessboard-cell.state-vote_for,
+.chessboard--guest .chessboard-cell.state-full,
+.chessboard--guest .legend-swatch.state-vote_for,
+.chessboard--guest .legend-swatch.state-full { background: #66bb6a; }
 .cell-type { font-size: 0.6rem; color: #666; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .cell-number { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
 .cell-icons { display: flex; gap: 2px; align-items: center; min-height: 16px; }
@@ -211,7 +257,127 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .chessboard-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 1rem; padding: 0.5rem 0.75rem; background: #f5f5f5; border-radius: 6px; font-size: 0.8rem; color: #444; }
 .legend-title { font-weight: 600; }
 .legend-item { display: inline-flex; align-items: center; gap: 4px; }
-.legend-swatch { display: inline-block; width: 14px; height: 14px; border: 1px solid #bdbdbd; border-radius: 2px; }
+.legend-swatch { display: inline-block; width: 14px; height: 14px; border: var(--chessboard-cell-border) solid #bdbdbd; border-radius: 2px; }
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    background: #fff !important;
+    padding: 0 !important;
+  }
+  .app-header,
+  .home-quorum,
+  .home-premise-prompt,
+  .entrance-picker,
+  .entrance-bar,
+  .entrance-loading,
+  .entrance-error,
+  .entrance-empty,
+  .chessboard-entrance-stats,
+  .chessboard-legend,
+  .chessboard-loading,
+  .chessboard-error {
+    display: none !important;
+  }
+  .app-body {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .chessboard-print-title {
+    display: block !important;
+    color: #000;
+    margin: 0 0 3mm !important;
+    font-size: 17.16pt !important;
+    font-weight: 600;
+  }
+  .chessboard {
+    margin: 0 !important;
+  }
+  /* Печать A4: без подписей этажей; высота ряда уменьшена на 15%, шрифты ячеек +20% */
+  .chessboard-floor-label {
+    display: none !important;
+  }
+  .chessboard-floor {
+    margin-bottom: 0 !important;
+  }
+  .chessboard-row {
+    gap: 0.85mm !important;
+    margin-bottom: 0.85mm !important;
+  }
+  /* Высота ячейки: 10.2mm × 0.95; шрифты в ячейках +20% */
+  .chessboard-cell {
+    --cb-print-w: 17mm;
+    --cb-print-h: 9.69mm;
+    /* длина штрихов креста: доля от hypot(W,H) по катетам ячейки */
+    --cb-cross-scale: 0.85;
+    border-color: #000 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    width: var(--cb-print-w) !important;
+    min-height: var(--cb-print-h) !important;
+    height: var(--cb-print-h) !important;
+    max-height: var(--cb-print-h) !important;
+    padding: 0.25mm 0.5mm !important;
+    border-radius: 1px !important;
+  }
+  .chessboard-cell .cell-type {
+    font-size: 6pt !important;
+    line-height: 1 !important;
+    color: #000 !important;
+  }
+  .chessboard-cell .cell-number {
+    font-size: 9pt !important;
+    line-height: 1 !important;
+    font-weight: 700;
+    color: #000 !important;
+  }
+  .chessboard-cell .cell-icons {
+    display: none !important;
+  }
+  .chessboard-cell > * {
+    position: relative;
+    z-index: 1;
+  }
+  /* Крест: две линии под ±30°; длина = --cb-cross-scale × hypot(W,H) */
+  .chessboard .chessboard-cell.state-registered::before,
+  .chessboard .chessboard-cell.state-vote_for::before,
+  .chessboard .chessboard-cell.state-full::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(var(--cb-cross-scale) * hypot(var(--cb-print-w), var(--cb-print-h)));
+    height: var(--chessboard-cell-border);
+    background: #000;
+    transform: translate(-50%, -50%) rotate(30deg);
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 0;
+  }
+  .chessboard .chessboard-cell.state-registered::after,
+  .chessboard .chessboard-cell.state-vote_for::after,
+  .chessboard .chessboard-cell.state-full::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(var(--cb-cross-scale) * hypot(var(--cb-print-w), var(--cb-print-h)));
+    height: var(--chessboard-cell-border);
+    background: #000;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 0;
+  }
+}
 /* FE-05: уведомление об автозаполнении */
 .form-cache-notice { margin: 0.5rem 0 0; padding: 0.5rem 0.75rem; background: #e3f2fd; border-radius: 6px; font-size: 0.9rem; color: #1565c0; }
 /* FE-05: Nudge-модал */
