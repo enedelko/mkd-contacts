@@ -324,14 +324,20 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     margin: 0 !important;
     padding: 0 !important;
   }
-  .chessboard-sheet-heading {
-    font-size: 17.16pt !important;
+  /* Заголовок листа +⅓ к прежнему 17.16pt; номер этажа в ряду компактнее */
+  .chessboard-print-title.chessboard-sheet-heading {
+    font-size: calc(17.16pt * 4 / 3) !important;
+    font-weight: 200;
+    color: #000;
+  }
+  .chessboard-row-floor.chessboard-sheet-heading {
+    font-size: 10pt !important;
     font-weight: 200;
     color: #000;
   }
   .chessboard-print-title {
     display: block !important;
-    margin: 0 0 3mm !important;
+    margin: 0 0 2mm !important;
   }
   .chessboard {
     margin: 0 !important;
@@ -339,50 +345,49 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   .chessboard-floor {
     margin-bottom: 0 !important;
   }
+  /* ~20 визуальных рядов на A4 вместе с заголовком: узкие интервалы */
   .chessboard-row {
-    gap: 0.85mm !important;
-    margin-bottom: 0.85mm !important;
+    gap: 0.35mm !important;
+    margin-bottom: 0.35mm !important;
   }
-  /* Высота ячейки: 10.2mm × 0.95; шрифты в ячейках +20% */
+  /* Печать: без рамок у ячеек; номер 16pt; низкая строка */
   .chessboard-cell {
-    /* ~68px при типичном DPI */
     --cb-print-w: 18mm;
-    --cb-print-h: 9.69mm;
-    /* длина штрихов креста: доля от hypot(W,H) по катетам ячейки */
+    --cb-print-h: 12mm;
     --cb-cross-scale: 0.85;
-    border: 0.5px solid #000 !important;
+    border: none !important;
+    outline: none !important;
     background: #fff !important;
     box-shadow: none !important;
     width: var(--cb-print-w) !important;
     min-height: var(--cb-print-h) !important;
-    height: var(--cb-print-h) !important;
-    max-height: var(--cb-print-h) !important;
-    padding: 0.25mm 0.5mm !important;
-    border-radius: 0.5px !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0.2mm 0.35mm !important;
+    border-radius: 0 !important;
   }
   .chessboard-cell .cell-type {
-    font-size: 6pt !important;
+    font-size: 6.5pt !important;
     line-height: 1 !important;
     color: #000 !important;
   }
   .chessboard-cell .cell-number {
-    font-size: 9pt !important;
+    font-size: 16pt !important;
     line-height: 1 !important;
-    font-weight: 700;
+    font-weight: 500;
     color: #000 !important;
   }
-  /* Помещения с подтверждением в ЭД (крест): тише типографика */
   .chessboard-cell.state-registered .cell-type,
   .chessboard-cell.state-vote_for .cell-type,
   .chessboard-cell.state-full .cell-type {
-    font-size: 5pt !important;
+    font-size: 6pt !important;
   }
   .chessboard-cell.state-registered .cell-number,
   .chessboard-cell.state-vote_for .cell-number,
   .chessboard-cell.state-full .cell-number {
-    font-size: 7.5pt !important;
-    font-weight: 400 !important;
-    color: #333 !important;
+    font-size: 16pt !important;
+    font-weight: 200 !important;
+    color: #000 !important;
   }
   .chessboard-cell .cell-icons {
     display: none !important;
@@ -391,7 +396,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     position: relative;
     z-index: 1;
   }
-  /* Крест: две линии под ±30°; длина = --cb-cross-scale × hypot(W,H); толщина как у рамки печати (0.5px) */
+  /* Крест: две линии под ±30°; длина = --cb-cross-scale × hypot(W,H) */
   .chessboard .chessboard-cell.state-registered::before,
   .chessboard .chessboard-cell.state-vote_for::before,
   .chessboard .chessboard-cell.state-full::before {
