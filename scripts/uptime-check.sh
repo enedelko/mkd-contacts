@@ -46,7 +46,7 @@ if [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
   msg_enc=$(printf '%s' "$msg" | sed "s/ /%20/g; s/:/%3A/g")
   url="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${msg_enc}"
   CURL_PROXY=()
-  [[ -n "${TELEGRAM_SOCKS5_PROXY:-}" ]] && CURL_PROXY=(--proxy "$TELEGRAM_SOCKS5_PROXY")
+  [[ -n "${TELEGRAM_SOCKS5_PROXY:-}" ]] && CURL_PROXY=(-x "$TELEGRAM_SOCKS5_PROXY")
   curl -s -o /dev/null -w "%{http_code}" "${CURL_PROXY[@]}" --connect-timeout 5 --max-time 10 "$url" >/dev/null 2>&1 || true
 fi
 

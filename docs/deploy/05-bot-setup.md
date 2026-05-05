@@ -38,6 +38,12 @@ TELEGRAM_SOCKS5_PROXY=socks5://127.0.0.1:1080
 
 На хосте для скриптов (`scripts/ssh-notify-telegram.sh`, `scripts/uptime-check.sh` вне Docker, `scripts/remote/mkd-backup-dump`) та же переменная может быть задана в `.env` приложения или в окружении процесса/cron.
 
+**Проверка вручную через curl:** используйте короткую опцию `-x` (совместима с BusyBox и полным curl), значение в кавычках. Спецсимволы в пароле закодируйте в URL (`:` → `%3A`, `@` → `%40` и т.д.). При необходимости DNS через прокси для HTTPS попробуйте схему `socks5h://` вместо `socks5://`.
+
+```bash
+curl -sS -x 'socks5h://user:pass@host:1080' "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
+```
+
 ## 1. Настройка `.env`
 
 ```bash
