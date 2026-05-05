@@ -30,9 +30,11 @@ Webhook работает так: **Telegram** отправляет HTTPS POST н
 Если сервер не может напрямую достучаться до `api.telegram.org` (но есть локальный или сетевой SOCKS5), задайте в `.env`:
 
 ```bash
-TELEGRAM_SOCKS5_PROXY=socks5://127.0.0.1:1080
-# или с учётной записью: socks5://user:secret@proxy-host:1080
+TELEGRAM_SOCKS5_PROXY=socks5h://127.0.0.1:1080
+# или с учётной записью: socks5h://user:secret@proxy-host:1080
 ```
+
+Предпочтительно **`socks5h://`**: DNS для целевого хоста выполняется на стороне прокси. При **`socks5://`** клиент сам резолвит `api.telegram.org` и подключается по IP — на части сетей это даёт таймауты при доступе к Telegram.
 
 Переменная пробрасывается в контейнеры `bot`, `backend` и `uptime-check`. Её используют только **исходящие** запросы к Telegram Bot API (регистрация webhook, отправка сообщений из бота, fallback `getMe` на backend, алерты uptime-check). Входящий webhook от Telegram на ваш Nginx на прокси не зависит.
 
