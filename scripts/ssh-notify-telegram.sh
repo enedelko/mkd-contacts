@@ -6,6 +6,7 @@
 # Параметры в .env (в корне репозитория или APP_DIR):
 #   TELEGRAM_BOT_TOKEN  — токен бота (как для остальных уведомлений)
 #   SSH_NOTIFY_CHAT_ID  — ID чата для оповещений о входе (или TELEGRAM_CHAT_ID)
+#   TELEGRAM_SOCKS5_PROXY — опционально: SOCKS5 к api.telegram.org (curl --proxy)
 
 set -e
 
@@ -18,7 +19,7 @@ if [[ -f "$ENV_FILE" ]]; then
   while IFS= read -r line; do
     [[ "$line" =~ ^#.*$ ]] && continue
     [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-    if [[ "$line" =~ ^(TELEGRAM_BOT_TOKEN|SSH_NOTIFY_CHAT_ID|TELEGRAM_CHAT_ID)= ]]; then
+    if [[ "$line" =~ ^(TELEGRAM_BOT_TOKEN|SSH_NOTIFY_CHAT_ID|TELEGRAM_CHAT_ID|TELEGRAM_SOCKS5_PROXY)= ]]; then
       export "$line"
     fi
   done < "$ENV_FILE"
@@ -44,6 +45,8 @@ MSG="${TIME}: вход ${USER_NAME}@${HOSTNAME} ${VIA}"
 (
   msg_enc=$(printf '%s' "$MSG" | sed "s/ /%20/g; s/:/%3A/g; s/@/%40/g; s/,/%2C/g; s/\//%2F/g; s/?/%3F/g; s/&/%26/g")
   url="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${msg_enc}"
-  curl -s -o /dev/null --connect-timeout 3 --max-time 5 "$url" 2>/dev/null || true
+  CURL_PROXY=()
+  [[ -n "${TELEGRAM_SOCKS5_PROXY:-}" ]] && CURL_PROXY=(--proxy "$TELEGRAM_SOCKS5_PROXY")
+  curl -s -o /dev/null "${CURL_PROXY[@]}" --connect-timeout 3 --max-time 5 "$url" 2>/dev/null || true
 ) &
 exit 0

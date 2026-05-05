@@ -25,6 +25,19 @@ Webhook работает так: **Telegram** отправляет HTTPS POST н
 
 Исходящие запросы (бот → backend, бот → api.telegram.org при `setWebhook`) из-за NAT не блокируются: исходящий трафик из домашней/офисной сети обычно разрешён.
 
+## Исходящий доступ к Telegram через SOCKS5 (опционально)
+
+Если сервер не может напрямую достучаться до `api.telegram.org` (но есть локальный или сетевой SOCKS5), задайте в `.env`:
+
+```bash
+TELEGRAM_SOCKS5_PROXY=socks5://127.0.0.1:1080
+# или с учётной записью: socks5://user:secret@proxy-host:1080
+```
+
+Переменная пробрасывается в контейнеры `bot`, `backend` и `uptime-check`. Её используют только **исходящие** запросы к Telegram Bot API (регистрация webhook, отправка сообщений из бота, fallback `getMe` на backend, алерты uptime-check). Входящий webhook от Telegram на ваш Nginx на прокси не зависит.
+
+На хосте для скриптов (`scripts/ssh-notify-telegram.sh`, `scripts/uptime-check.sh` вне Docker, `scripts/remote/mkd-backup-dump`) та же переменная может быть задана в `.env` приложения или в окружении процесса/cron.
+
 ## 1. Настройка `.env`
 
 ```bash

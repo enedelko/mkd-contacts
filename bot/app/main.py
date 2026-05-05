@@ -6,12 +6,14 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 
 from app.config import (
     TELEGRAM_BOT_TOKEN,
+    TELEGRAM_SOCKS5_PROXY,
     LISTEN_PORT,
     WEBHOOK_HOST,
     WEBHOOK_PATH,
@@ -43,7 +45,13 @@ async def on_shutdown(bot: Bot):
 
 def main():
     storage = SQLiteStorage(db_path=SESSION_DB_PATH, ttl_seconds=SESSION_TTL_SECONDS)
-    bot = Bot(token=TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    props = DefaultBotProperties(parse_mode=ParseMode.HTML)
+    if TELEGRAM_SOCKS5_PROXY:
+        session = AiohttpSession(proxy=TELEGRAM_SOCKS5_PROXY)
+        bot = Bot(token=TELEGRAM_BOT_TOKEN, session=session, default=props)
+        logger.info("Telegram Bot API client uses SOCKS5 proxy (TELEGRAM_SOCKS5_PROXY is set)")
+    else:
+        bot = Bot(token=TELEGRAM_BOT_TOKEN, default=props)
     dp = Dispatcher(storage=storage)
 
     # Роутеры с state-специфичными обработчиками (в т.ч. «Отмена» из ENTER_PARKING_INPUT) — раньше start

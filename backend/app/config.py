@@ -19,6 +19,8 @@ BLIND_INDEX_PEPPER = _env("BLIND_INDEX_PEPPER", "")
 
 # ADM-01: Telegram Bot Token для проверки Login Widget hash
 TELEGRAM_BOT_TOKEN = _env("TELEGRAM_BOT_TOKEN", "")
+# Опционально: SOCKS5 к api.telegram.org (fallback getMe в /api/auth/telegram/bot-id)
+TELEGRAM_SOCKS5_PROXY = (_env("TELEGRAM_SOCKS5_PROXY", "") or "").strip()
 # JWT (ADM-01). Рекомендуется 8–12 ч для админки: при потере телефона сессия истечёт сама.
 JWT_SECRET = _env("JWT_SECRET", "")
 JWT_ALGORITHM = "HS256"

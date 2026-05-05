@@ -147,6 +147,7 @@ mkd-contacts/
 - **Первый админ:** добавляется вручную в БД (INSERT в `admins`), см. [docs/deploy/03-basic-admin.md](docs/deploy/03-basic-admin.md).
 - **Telegram-бот (опрос собственников):** настройка webhook, Nginx и секретов описана в [docs/deploy/05-bot-setup.md](docs/deploy/05-bot-setup.md).
 - **Production:** обязательно свой `.env` с уникальными паролями и секретами; дефолты в `docker-compose.yml` — только для разработки ([docs/deploy/01-bootstrap.md](docs/deploy/01-bootstrap.md)).
+- **Telegram через SOCKS5:** опционально `TELEGRAM_SOCKS5_PROXY` в `.env` для исходящих вызовов Bot API (см. [docs/deploy/05-bot-setup.md](docs/deploy/05-bot-setup.md)).
 
 ---
 

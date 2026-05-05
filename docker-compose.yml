@@ -5,13 +5,20 @@
 # ВАЖНО: Значения по умолчанию (mkd_secret и т.д.) — только для разработки.
 # В production обязательно использовать .env с уникальными паролями и секретами.
 
+x-restart: &default-restart
+  restart: unless-stopped
+
+x-env-tz: &env-tz
+  TZ: Europe/Moscow
+
 services:
   db:
+    <<: *default-restart
     image: postgres:15-alpine
     container_name: mkd-db
     environment:
-      TZ: Europe/Moscow
-      PGTZ: Europe/Moscow  # Специальная переменная для PostgreSQL
+      <<: *env-tz
+      PGTZ: Europe/Moscow
       POSTGRES_USER: ${POSTGRES_USER:-mkd}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mkd_secret}
       POSTGRES_DB: ${POSTGRES_DB:-mkd_contacts}
@@ -19,21 +26,21 @@ services:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mkd} -d ${POSTGRES_DB:-mkd_contacts}"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
   backend:
+    <<: *default-restart
     build:
       context: ./backend
-      dockerfile: Dockerfile
     container_name: mkd-backend
     env_file: .env
     environment:
-      TZ: Europe/Moscow
+      <<: *env-tz
       DATABASE_URL: postgresql://${POSTGRES_USER:-mkd}:${POSTGRES_PASSWORD:-mkd_secret}@db:5432/${POSTGRES_DB:-mkd_contacts}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_SOCKS5_PROXY: ${TELEGRAM_SOCKS5_PROXY:-}
       JWT_SECRET: ${JWT_SECRET:-}
       BLIND_INDEX_PEPPER: ${BLIND_INDEX_PEPPER:-}
       MASTER_KEY_PATH: ${MASTER_KEY_PATH:-}
@@ -43,35 +50,31 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Мастер-ключ шифрования (BE-02) НЕ в репозитории. Варианты:
-    # 1) Docker Secrets: secrets: [encryption_key]; в swarm.
-    # 2) Bind mount: volumes: ["/host/path/to/encryption.key:/app/encryption.key:ro"]
-    # Контейнер db не имеет доступа к этому секрету.
-    restart: unless-stopped
+    # Мастер-ключ (BE-02): не в репозитории — см. docs/deploy/01-bootstrap.md (secrets / bind mount).
 
   frontend:
+    <<: *default-restart
     build:
       context: ./frontend
-      dockerfile: Dockerfile
       args:
         VITE_TELEGRAM_BOT_USERNAME: ${VITE_TELEGRAM_BOT_USERNAME:-}
     container_name: mkd-frontend
     environment:
-      TZ: Europe/Moscow
+      <<: *env-tz
     ports:
       - "127.0.0.1:8080:80"
     depends_on:
       - backend
-    restart: unless-stopped
 
   bot:
+    <<: *default-restart
     build:
       context: ./bot
-      dockerfile: Dockerfile
     container_name: mkd-bot
     environment:
-      TZ: Europe/Moscow
+      <<: *env-tz
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_SOCKS5_PROXY: ${TELEGRAM_SOCKS5_PROXY:-}
       BOT_API_TOKEN: ${BOT_API_TOKEN:-}
       BACKEND_URL: http://backend:8000
       WEBHOOK_HOST: ${WEBHOOK_HOST:-}
@@ -83,23 +86,23 @@ services:
       - "127.0.0.1:8443:8443"
     depends_on:
       - backend
-    restart: unless-stopped
 
   # OPS-03: проверка доступности приложения, при двух подряд неуспехах — алерт в Telegram
   uptime-check:
+    <<: *default-restart
     build:
       context: .
       dockerfile: uptime-check/Dockerfile
     container_name: mkd-uptime-check
     environment:
-      TZ: Europe/Moscow
+      <<: *env-tz
       UPTIME_CHECK_URL: ${UPTIME_CHECK_URL:-http://backend:8000/health}
       UPTIME_CHECK_INTERVAL_SEC: ${UPTIME_CHECK_INTERVAL_SEC:-600}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_SOCKS5_PROXY: ${TELEGRAM_SOCKS5_PROXY:-}
       TELEGRAM_CHAT_ID: ${UPTIME_TELEGRAM_CHAT_ID:-}
     depends_on:
       - backend
-    restart: unless-stopped
 
 volumes:
   pgdata:

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # OPS-03: проверка доступности приложения (GET /health). При двух подряд неуспехах — уведомление в Telegram.
 # Вызов: из cron каждые 5–15 мин, например: */10 * * * * UPTIME_CHECK_URL=https://example.com/api/health TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... /path/to/scripts/uptime-check.sh
-# Переменные: UPTIME_CHECK_URL (обязателен с хоста), TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (для алерта), FAILURES_FILE (по умолчанию /tmp/mkd-uptime-failures).
+# Переменные: UPTIME_CHECK_URL (обязателен с хоста), TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (для алерта),
+# TELEGRAM_SOCKS5_PROXY (опционально: SOCKS5 к api.telegram.org для sendMessage), FAILURES_FILE (по умолчанию /tmp/mkd-uptime-failures).
 
 set -e
 
@@ -44,7 +45,9 @@ if [[ -n "$TELEGRAM_BOT_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
   msg="Сервис Кворум-МКД недоступен, время $(date -Iseconds 2>/dev/null || date)"
   msg_enc=$(printf '%s' "$msg" | sed "s/ /%20/g; s/:/%3A/g")
   url="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${msg_enc}"
-  curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$url" >/dev/null 2>&1 || true
+  CURL_PROXY=()
+  [[ -n "${TELEGRAM_SOCKS5_PROXY:-}" ]] && CURL_PROXY=(--proxy "$TELEGRAM_SOCKS5_PROXY")
+  curl -s -o /dev/null -w "%{http_code}" "${CURL_PROXY[@]}" --connect-timeout 5 --max-time 10 "$url" >/dev/null 2>&1 || true
 fi
 
 exit 0

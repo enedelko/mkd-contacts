@@ -23,7 +23,7 @@ from app.auth_password import (
 )
 from app.auth_telegram import get_admin_by_telegram_id, verify_telegram_login
 from app.client_ip import get_client_ip
-from app.config import TELEGRAM_BOT_TOKEN
+from app.config import TELEGRAM_BOT_TOKEN, TELEGRAM_SOCKS5_PROXY
 from app.db import get_db
 from app.jwt_utils import create_access_token, require_admin
 
@@ -190,7 +190,8 @@ def telegram_bot_id() -> JSONResponse:
         return JSONResponse(content={"bot_id": parsed, "bot_username": None})
     try:
         timeout = httpx.Timeout(20.0, connect=15.0)
-        with httpx.Client(timeout=timeout) as client:
+        proxy = TELEGRAM_SOCKS5_PROXY or None
+        with httpx.Client(timeout=timeout, proxy=proxy) as client:
             r = client.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getMe")
             data = r.json()
         if not data.get("ok") or not data.get("result"):

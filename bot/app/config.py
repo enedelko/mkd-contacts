@@ -2,6 +2,7 @@
 import os
 
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_SOCKS5_PROXY = (os.getenv("TELEGRAM_SOCKS5_PROXY") or "").strip()
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 BOT_API_TOKEN = os.environ["BOT_API_TOKEN"]
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
