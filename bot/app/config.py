@@ -20,3 +20,10 @@ WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "")
 LISTEN_PORT = int(os.getenv("BOT_PORT", "8443"))
 SESSION_DB_PATH = os.getenv("SESSION_DB_PATH", "/data/sessions.db")
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "3600"))
+# Только отладка: логировать curl с реальным TELEGRAM_BOT_TOKEN (и URL прокси). По умолчанию выключено.
+TELEGRAM_LOG_CURL_WITH_TOKEN = (os.getenv("TELEGRAM_LOG_CURL_WITH_TOKEN") or "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)

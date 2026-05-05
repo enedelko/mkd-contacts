@@ -13,6 +13,7 @@ from aiohttp import web
 
 from app.config import (
     TELEGRAM_BOT_TOKEN,
+    TELEGRAM_LOG_CURL_WITH_TOKEN,
     TELEGRAM_SOCKS5_PROXY,
     LISTEN_PORT,
     WEBHOOK_HOST,
@@ -58,6 +59,18 @@ async def on_startup(bot: Bot):
                     'curl -sS -x "${TELEGRAM_SOCKS5_PROXY}" '
                     '"https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"'
                 )
+            if TELEGRAM_LOG_CURL_WITH_TOKEN:
+                curl_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getWebhookInfo"
+                logger.warning(
+                    "TELEGRAM_LOG_CURL_WITH_TOKEN: токен и при SOCKS — URL прокси попадают в лог; только для отладки, потом выключите."
+                )
+                logger.warning('curl -sS "%s"', curl_url)
+                if TELEGRAM_SOCKS5_PROXY:
+                    logger.warning(
+                        'curl -sS -x "%s" "%s"',
+                        TELEGRAM_SOCKS5_PROXY,
+                        curl_url,
+                    )
     else:
         logger.warning("WEBHOOK_HOST not set, skipping webhook registration")
 
