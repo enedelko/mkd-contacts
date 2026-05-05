@@ -33,6 +33,21 @@ async def on_startup(bot: Bot):
         url = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
         await bot.set_webhook(url)
         logger.info("Webhook set to %s", url)
+        try:
+            info = await bot.get_webhook_info()
+        except Exception as e:
+            logger.warning("getWebhookInfo failed: %s", e)
+        else:
+            logger.info(
+                "WebhookInfo pending_update_count=%s max_connections=%s",
+                info.pending_update_count,
+                getattr(info, "max_connections", None),
+            )
+            if info.last_error_message:
+                logger.warning(
+                    "Telegram getWebhookInfo last_error_message (входящая доставка на URL, не SOCKS): %s",
+                    info.last_error_message,
+                )
     else:
         logger.warning("WEBHOOK_HOST not set, skipping webhook registration")
 

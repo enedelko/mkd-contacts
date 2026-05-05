@@ -40,6 +40,15 @@ TELEGRAM_SOCKS5_PROXY=socks5h://127.0.0.1:1080
 
 Переменная пробрасывается в контейнеры `bot`, `backend` и `uptime-check`. Её используют только **исходящие** запросы к Telegram Bot API (регистрация webhook, отправка сообщений из бота, fallback `getMe` на backend, алерты uptime-check). Входящий webhook от Telegram на ваш Nginx на прокси не зависит.
 
+**Важно (два направления трафика):**
+
+| Направление | Путь | `TELEGRAM_SOCKS5_PROXY` |
+|-------------|------|-------------------------|
+| Исходящий | контейнер `bot` → `api.telegram.org` (`setWebhook`, ответы пользователю) | да, если задан |
+| Входящий | серверы Telegram → ваш `https://домен/...` → Nginx → `127.0.0.1:8443` | нет |
+
+Если в логах видно «Webhook set to …», исходящая регистрация прошла. Если бот «молчит» на сообщения, чаще всего Telegram **не доставляет** POST на ваш URL: проверьте Nginx, TLS, что путь совпадает с зарегистрированным, и что с интернета доходят запросы к `https://домен/api/tg-wh/…` (не блокирует фаервол/провайдер). После старта бот пишет в лог строки `WebhookInfo …` и при проблеме доставки — предупреждение с текстом из `getWebhookInfo.last_error_message`.
+
 На хосте для скриптов (`scripts/ssh-notify-telegram.sh`, `scripts/uptime-check.sh` вне Docker, `scripts/remote/mkd-backup-dump`) та же переменная может быть задана в `.env` приложения или в окружении процесса/cron.
 
 **Проверка вручную через curl:** используйте короткую опцию `-x` (совместима с BusyBox и полным curl), значение в кавычках. Спецсимволы в пароле закодируйте в URL (`:` → `%3A`, `@` → `%40` и т.д.). При необходимости DNS через прокси для HTTPS попробуйте схему `socks5h://` вместо `socks5://`.
@@ -106,9 +115,11 @@ docker compose logs -f bot
 
 # Проверить webhook через Telegram API
 curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
+# при необходимости через тот же SOCKS, что в .env:
+# curl -sS -x "$TELEGRAM_SOCKS5_PROXY" "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
 ```
 
-Ожидаемый ответ: `url` указывает на `https://your-domain.ru/api/tg-wh/<WEBHOOK_SECRET>`.
+Ожидаемый ответ: `url` указывает на `https://your-domain.ru/api/tg-wh/<WEBHOOK_SECRET>`. Поля `last_error_message` / `last_error_date` (если не пустые) — ошибка **доставки** обновлений Telegram на ваш HTTPS, а не исходящего SOCKS.
 
 ## 6. Проверить работу
 
