@@ -1,8 +1,17 @@
 """Bot configuration loaded from environment variables."""
 import os
 
+
+def _normalize_telegram_socks_proxy(url: str) -> str:
+    """python_socks (aiogram) не знает схему socks5h:// — только socks5://; удалённый DNS через SOCKS задаётся коннектором aiogram (rdns)."""
+    u = url.strip()
+    if u.casefold().startswith("socks5h://"):
+        return "socks5://" + u[10:]  # len("socks5h://")
+    return u
+
+
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-TELEGRAM_SOCKS5_PROXY = (os.getenv("TELEGRAM_SOCKS5_PROXY") or "").strip()
+TELEGRAM_SOCKS5_PROXY = _normalize_telegram_socks_proxy((os.getenv("TELEGRAM_SOCKS5_PROXY") or "").strip())
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 BOT_API_TOKEN = os.environ["BOT_API_TOKEN"]
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")

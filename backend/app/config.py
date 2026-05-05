@@ -9,6 +9,14 @@ def _env(key: str, default: str | None = None) -> str | None:
     return os.environ.get(key, default)
 
 
+def _normalize_telegram_socks_proxy(url: str) -> str:
+    """Привести socks5h:// к socks5:// для httpx/python_socks; в .env удобно оставлять socks5h как в curl."""
+    u = url.strip()
+    if u.casefold().startswith("socks5h://"):
+        return "socks5://" + u[10:]  # len("socks5h://")
+    return u
+
+
 # Database (LOST-01)
 DATABASE_URL = _env("DATABASE_URL", "postgresql://mkd:mkd_secret@localhost:5432/mkd_contacts")
 
@@ -20,7 +28,7 @@ BLIND_INDEX_PEPPER = _env("BLIND_INDEX_PEPPER", "")
 # ADM-01: Telegram Bot Token для проверки Login Widget hash
 TELEGRAM_BOT_TOKEN = _env("TELEGRAM_BOT_TOKEN", "")
 # Опционально: SOCKS5 к api.telegram.org (fallback getMe в /api/auth/telegram/bot-id)
-TELEGRAM_SOCKS5_PROXY = (_env("TELEGRAM_SOCKS5_PROXY", "") or "").strip()
+TELEGRAM_SOCKS5_PROXY = _normalize_telegram_socks_proxy((_env("TELEGRAM_SOCKS5_PROXY", "") or "").strip())
 # JWT (ADM-01). Рекомендуется 8–12 ч для админки: при потере телефона сессия истечёт сама.
 JWT_SECRET = _env("JWT_SECRET", "")
 JWT_ALGORITHM = "HS256"

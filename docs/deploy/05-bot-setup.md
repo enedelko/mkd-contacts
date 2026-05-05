@@ -36,6 +36,8 @@ TELEGRAM_SOCKS5_PROXY=socks5h://127.0.0.1:1080
 
 Предпочтительно **`socks5h://`**: DNS для целевого хоста выполняется на стороне прокси. При **`socks5://`** клиент сам резолвит `api.telegram.org` и подключается по IP — на части сетей это даёт таймауты при доступе к Telegram.
 
+В контейнерах **`bot`** и **`backend`** значение `socks5h://...` при загрузке конфига приводится к `socks5://...` (библиотека подключения к Telegram не принимает имя схемы `socks5h`). Поведение для доступа к API остаётся эквивалентным curl с `socks5h`.
+
 Переменная пробрасывается в контейнеры `bot`, `backend` и `uptime-check`. Её используют только **исходящие** запросы к Telegram Bot API (регистрация webhook, отправка сообщений из бота, fallback `getMe` на backend, алерты uptime-check). Входящий webhook от Telegram на ваш Nginx на прокси не зависит.
 
 На хосте для скриптов (`scripts/ssh-notify-telegram.sh`, `scripts/uptime-check.sh` вне Docker, `scripts/remote/mkd-backup-dump`) та же переменная может быть задана в `.env` приложения или в окружении процесса/cron.
