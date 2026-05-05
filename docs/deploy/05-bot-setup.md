@@ -121,6 +121,14 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
 
 Ожидаемый ответ: `url` указывает на `https://your-domain.ru/api/tg-wh/<WEBHOOK_SECRET>`. Поля `last_error_message` / `last_error_date` (если не пустые) — ошибка **доставки** обновлений Telegram на ваш HTTPS, а не исходящего SOCKS.
 
+### `last_error_message`: `Connection timed out`
+
+Это значит, что **серверы Telegram** не смогли вовремя установить соединение с вашим публичным HTTPS (Nginx на 443 и т.д.). SOCKS в `.env` для исходящих запросов бота сюда не входит.
+
+По [официальному гиду по webhook](https://core.telegram.org/bots/webhooks) входящие POST к боту должны приниматься на **443** (или 80 / 88 / 8443) по **IPv4** с подсетей **`149.154.160.0/20`** и **`91.108.4.0/22`**. Если фаервол или security group в облаке эти сети не пускает на ваш порт — типичный симптом таймаута.
+
+Проверки: с внешней сети `curl -vI --ipv4 https://ваш-домен/api/tg-wh/...` (не должно «висеть»); на хосте — `ss`/`nginx -t`/логи Nginx; при ограничении доступа по IP — явно разрешить указанные CIDR на нужный порт.
+
 ## 6. Проверить работу
 
 1. Открыть бота в Telegram, нажать `/start`.
