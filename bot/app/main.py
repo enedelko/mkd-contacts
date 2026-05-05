@@ -48,6 +48,16 @@ async def on_startup(bot: Bot):
                     "Telegram getWebhookInfo last_error_message (входящая доставка на URL, не SOCKS): %s",
                     info.last_error_message,
                 )
+            logger.info(
+                "Проверка getWebhookInfo вручную (токен в лог не выводим; подставьте из .env или export): "
+                'curl -sS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"'
+            )
+            if TELEGRAM_SOCKS5_PROXY:
+                logger.info(
+                    "Тот же запрос через SOCKS как у бота: "
+                    'curl -sS -x "${TELEGRAM_SOCKS5_PROXY}" '
+                    '"https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo"'
+                )
     else:
         logger.warning("WEBHOOK_HOST not set, skipping webhook registration")
 
