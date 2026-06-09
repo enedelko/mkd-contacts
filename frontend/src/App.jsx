@@ -147,45 +147,25 @@ function Home() {
 
   return (
     <>
-      {/* SR-FE06-001: Блок кворума вверху */}
-      <section className="home-quorum" aria-label="Прогноз кворума">
-        {quorumLoading && <p className="quorum-loading">Загрузка данных кворума…</p>}
+      {/* SR-FE06-001: Блок статистики ОСС вверху */}
+      <section className="home-quorum" aria-label="Статистика ОСС">
+        {quorumLoading && <p className="quorum-loading">Загрузка данных…</p>}
         {quorumError && !quorumLoading && (
-          <p className="quorum-error">Данные по кворуму пока недоступны.</p>
+          <p className="quorum-error">Данные по дому пока недоступны.</p>
         )}
         {quorum && !quorumLoading && (
           <div className="quorum-block">
-            <h2>Кворум ОСС</h2>
-            <p className="quorum-stats">
-              Площадь с голосами «ЗА»: <strong>{quorum.area_voted_for}</strong> м² из <strong>{quorum.total_area}</strong> м²
-              {quorum.total_area > 0 && (
-                <> ({(quorum.ratio * 100).toFixed(1)}%, порог 66,7%)</>
-              )}
-            </p>
-            <div className="quorum-progress-wrap">
-              <div
-                className="quorum-progress"
-                style={{ width: `${Math.min(100, quorum.ratio * 100)}%` }}
-                role="progressbar"
-                aria-valuenow={quorum.ratio * 100}
-                aria-valuemin="0"
-                aria-valuemax="100"
-              />
-            </div>
-            <p className={`quorum-result ${quorum.quorum_reached ? 'quorum-reached' : ''}`}>
-              {quorum.quorum_reached ? 'Кворум набирается (порог 2/3 достигнут)' : 'Кворум не набирается (порог 2/3 пока не достигнут)'}
-            </p>
-            {/* % в Электронном доме по дому: все зарегистрированные и с подтверждённой собственностью */}
-            {quorum.total_area > 0 && typeof quorum.area_registered_ed_any === 'number' && (
-              <p className="quorum-ed-stats quorum-stats">
-                В Электронном доме (все зарегистрированные): <strong>{quorum.area_registered_ed_any}</strong> м² из <strong>{quorum.total_area}</strong> м²
-                ({(quorum.ed_any_ratio * 100).toFixed(1)}%)
+            <h2>Статистика ОСС</h2>
+            {quorum.total_area > 0 && typeof quorum.area_registered_ed === 'number' && (
+              <p className="quorum-stats">
+                Подтвердили собственность: <strong>{quorum.area_registered_ed}</strong> м² из <strong>{quorum.total_area}</strong> м²
+                ({(quorum.ed_ratio * 100).toFixed(1)}%)
               </p>
             )}
-            {quorum.total_area > 0 && typeof quorum.area_registered_ed === 'number' && (
-              <p className="quorum-ed-stats quorum-stats">
-                В Электронном доме (с подтверждённой собственностью): <strong>{quorum.area_registered_ed}</strong> м² из <strong>{quorum.total_area}</strong> м²
-                ({(quorum.ed_ratio * 100).toFixed(1)}%)
+            {quorum.total_area > 0 && typeof quorum.area_participated === 'number' && (
+              <p className="quorum-stats">
+                Проголосовало: <strong>{quorum.area_participated}</strong> м² из <strong>{quorum.total_area}</strong> м²
+                ({(quorum.participation_ratio * 100).toFixed(1)}%)
               </p>
             )}
           </div>
@@ -201,25 +181,19 @@ function Home() {
         prompt="Выберите подъезд для просмотра помещений."
       />
 
-      {/* SR-FE06-004, SR-FE06-017: % площади ЗА и % в ЭД по подъезду над шахматкой */}
+      {/* Статистика подъезда над шахматкой */}
       {board && !boardLoading && (
         <div className="chessboard-entrance-stats">
-          <p className="chessboard-stats-line">
-            Площадь «ЗА» по подъезду: <strong>{board.entrance_area_voted_for}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
-            {board.entrance_total_area > 0 && (
-              <> ({(board.entrance_ratio * 100).toFixed(1)}%)</>
-            )}
-          </p>
-          {board.entrance_total_area > 0 && typeof board.entrance_area_registered_ed_any === 'number' && (
-            <p className="chessboard-stats-line">
-              В Электронном доме по подъезду (все зарегистрированные): <strong>{board.entrance_area_registered_ed_any}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
-              ({(board.entrance_ed_any_ratio * 100).toFixed(1)}%)
-            </p>
-          )}
           {board.entrance_total_area > 0 && typeof board.entrance_area_registered_ed === 'number' && (
             <p className="chessboard-stats-line">
-              В Электронном доме по подъезду (с подтверждённой собственностью): <strong>{board.entrance_area_registered_ed}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
+              Подтвердили собственность по подъезду: <strong>{board.entrance_area_registered_ed}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
               ({(board.entrance_ed_ratio * 100).toFixed(1)}%)
+            </p>
+          )}
+          {board.entrance_total_area > 0 && typeof board.entrance_area_participated === 'number' && (
+            <p className="chessboard-stats-line">
+              Проголосовало по подъезду: <strong>{board.entrance_area_participated}</strong> м² из <strong>{board.entrance_total_area}</strong> м²
+              ({(board.entrance_participation_ratio * 100).toFixed(1)}%)
             </p>
           )}
         </div>
@@ -231,7 +205,7 @@ function Home() {
 
       {board && !boardLoading && (
         <div
-          className={`chessboard ${token ? 'chessboard--auth' : 'chessboard--guest'}`}
+          className="chessboard"
           aria-label="Шахматка помещений"
         >
           <h2 className="chessboard-print-title chessboard-sheet-heading">Подтверждение собственности в ЭД</h2>
@@ -277,10 +251,9 @@ function Home() {
           <div className="chessboard-legend" aria-label="Обозначения">
             <span className="legend-title">Обозначения:</span>
             <span className="legend-item"><span className="legend-swatch state-none" />Нет информации</span>
-            <span className="legend-item"><span className="legend-swatch state-ed_account" />ЭД без подтверждённой собственности</span>
-            <span className="legend-item"><span className="legend-swatch state-registered" />Собственность подтверждена в ЭД</span>
-            <span className="legend-item"><span className="legend-swatch state-vote_for" />Есть голос «ЗА»</span>
-            <span className="legend-item"><span className="legend-swatch state-full" />Все голосуют «ЗА»</span>
+            <span className="legend-item"><span className="legend-swatch state-registered" />Собственность подтверждена</span>
+            <span className="legend-item"><span className="legend-swatch state-vote_for" />Проголосовала часть собственников</span>
+            <span className="legend-item"><span className="legend-swatch state-full" />Проголосовали все</span>
             <span className="legend-item"><TelegramIcon width={14} height={14} /> Есть Telegram / телефон</span>
             <span className="legend-item"><span className="cell-email">✉</span> Только email</span>
           </div>

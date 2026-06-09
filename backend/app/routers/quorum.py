@@ -106,10 +106,35 @@ def get_quorum(building_id: str) -> dict[str, Any]:
         area_registered_ed = float(area_ed_row[0] or 0)
         area_registered_ed_any = float(area_ed_any_row[0] or 0)
 
+        participation_sql = """
+            SELECT COALESCE(SUM(
+                COALESCE(p.area, 0) * LEAST(COALESCE(ps.share_sum, 0), 1)
+            ), 0)
+            FROM premises p
+            LEFT JOIN (
+                SELECT premise_id, SUM(ownership_share) AS share_sum
+                FROM oss_participation
+                WHERE participated = true
+                GROUP BY premise_id
+            ) ps ON ps.premise_id = p.cadastral_number
+            WHERE {where_p}
+        """
+        if use_prefix:
+            area_participated_row = db.execute(
+                text(participation_sql.format(where_p="starts_with(p.cadastral_number, :bid)")),
+                {"bid": building_id},
+            ).fetchone()
+        else:
+            area_participated_row = db.execute(
+                text(participation_sql.format(where_p="1=1"))
+            ).fetchone()
+        area_participated = float(area_participated_row[0] or 0)
+
     ratio = (area_voted_for / total_area) if total_area > 0 else 0.0
     quorum_reached = ratio >= QUORUM_THRESHOLD
     ed_ratio = (area_registered_ed / total_area) if total_area > 0 else 0.0
     ed_any_ratio = (area_registered_ed_any / total_area) if total_area > 0 else 0.0
+    participation_ratio = (area_participated / total_area) if total_area > 0 else 0.0
 
     return {
         "total_area": round(total_area, 2),
@@ -121,4 +146,6 @@ def get_quorum(building_id: str) -> dict[str, Any]:
         "ed_ratio": round(ed_ratio, 4),
         "area_registered_ed_any": round(area_registered_ed_any, 2),
         "ed_any_ratio": round(ed_any_ratio, 4),
+        "area_participated": round(area_participated, 2),
+        "participation_ratio": round(participation_ratio, 4),
     }

@@ -22,18 +22,18 @@ WELCOME = (
 
 
 def format_quorum_block(quorum: dict) -> str:
-    """Формирует блок: % в ЭД, кворум, фраза про старт ОСС. Пустая строка если нет нужных полей."""
+    """Формирует блок: % подтверждённой собственности и % проголосовавших."""
     ed_ratio = quorum.get("ed_ratio")
-    quorum_reached = quorum.get("quorum_reached")
-    if ed_ratio is None and quorum_reached is None:
+    participation_ratio = quorum.get("participation_ratio")
+    if ed_ratio is None and participation_ratio is None:
         return ""
     parts = []
     if ed_ratio is not None:
         pct = round(float(ed_ratio) * 100, 1)
-        parts.append(f"В Электронном Доме — {pct}% площади.")
-    if quorum_reached is not None:
-        parts.append(f"Кворум (2/3): {'да' if quorum_reached else 'ещё нет'}.")
-    parts.append("ОСС стартуем после того, как будет набираться кворум.")
+        parts.append(f"Подтвердили собственность — {pct}% площади.")
+    if participation_ratio is not None:
+        pct = round(float(participation_ratio) * 100, 1)
+        parts.append(f"Проголосовало — {pct}% площади.")
     return "По дому: " + " ".join(parts)
 
 

@@ -251,26 +251,14 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 }
 .chessboard-cell:hover { box-shadow: 0 0 0 2px #1976d2; }
 .chessboard-cell:focus-visible { outline: 2px solid #1976d2; outline-offset: 1px; }
-.chessboard--auth .chessboard-cell.state-none,
-.chessboard--auth .legend-swatch.state-none { background: #fff; }
-.chessboard--auth .chessboard-cell.state-ed_account,
-.chessboard--auth .legend-swatch.state-ed_account { background: #ffe0b2; }
-.chessboard--auth .chessboard-cell.state-registered,
-.chessboard--auth .legend-swatch.state-registered { background: #fff9c4; }
-.chessboard--auth .chessboard-cell.state-vote_for,
-.chessboard--auth .legend-swatch.state-vote_for { background: #c8e6c9; }
-.chessboard--auth .chessboard-cell.state-full,
-.chessboard--auth .legend-swatch.state-full { background: #66bb6a; }
-.chessboard--guest .chessboard-cell.state-none,
-.chessboard--guest .legend-swatch.state-none { background: #fff; }
-.chessboard--guest .chessboard-cell.state-ed_account,
-.chessboard--guest .legend-swatch.state-ed_account { background: #ffe0b2; }
-.chessboard--guest .chessboard-cell.state-registered,
-.chessboard--guest .legend-swatch.state-registered { background: #dcedc8; }
-.chessboard--guest .chessboard-cell.state-vote_for,
-.chessboard--guest .chessboard-cell.state-full,
-.chessboard--guest .legend-swatch.state-vote_for,
-.chessboard--guest .legend-swatch.state-full { background: #66bb6a; }
+.chessboard-cell.state-none,
+.legend-swatch.state-none { background: #fff; }
+.chessboard-cell.state-registered,
+.legend-swatch.state-registered { background: #fff9c4; }
+.chessboard-cell.state-vote_for,
+.legend-swatch.state-vote_for { background: #c8e6c9; }
+.chessboard-cell.state-full,
+.legend-swatch.state-full { background: #66bb6a; }
 .chessboard-cell .cell-type {
   font-size: 0.6rem;
   color: #666;

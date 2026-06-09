@@ -43,13 +43,15 @@
 | **admins** | Белый список администраторов | telegram_id, role (administrator \| super_administrator), created_at |
 | **premises** | Помещения МКД (реестр) | cadastral_number (PK), площадь, подъезд, этаж, тип_помещения, номер_помещения (String, нормализованный — см. выше) |
 | **contacts** | Контакты (каналы связи) | premise_id (FK → premises.cadastral_number), is_owner; ПДн в зашифрованном виде (BE-02): phone, email, telegram_id, **как_обращаться** (единственный способ персонализации рассылок); обязательные технические поля **phone_idx, email_idx, telegram_id_idx** (Blind Index для поиска по зашифрованным ПДн); зарегистрирован_в_электронном_доме (bool), согласия/версия политики, даты, ip, статус (pending / validated / inactive) |
-| **голосование_в_ОСС** | Участие в ОСС и голосование | contact_id (FK), позиция_за, формат_голоса, в_электронном_доме, проголосовал (bool) |
+| **голосование_в_ОСС** | Участие в ОСС и голосование (анкеты, бот) | contact_id (FK), barrier_vote, vote_format, проголосовал (bool) |
+| **участие_в_голосовании** (`oss_participation`) | Снимок участия в голосовании из выгрузки (CORE-05) | premise_id (FK), share_nominal, ownership_share (сумма по группе), participated, imported_at, import_batch_id |
 
 **Связи:**
 
 ```mermaid
 erDiagram
     premises ||--o{ contacts : "premise_id"
+    premises ||--o{ oss_participation : "premise_id"
     contacts ||--o| oss_voting : "contact_id"
     admins {
       string telegram_id PK
@@ -84,11 +86,19 @@ erDiagram
     oss_voting {
       int id PK
       int contact_id FK
-      boolean vote_for
+      string barrier_vote
       string vote_format
-      boolean in_ed
       boolean voted
+    }
+    oss_participation {
+      int id PK
+      string premise_id FK
+      numeric share_nominal
+      numeric ownership_share
+      boolean participated
+      timestamp imported_at
+      uuid import_batch_id
     }
 ```
 
-*Примечание:* `голосование_в_ОСС` на диаграмме — `oss_voting`. Поля phone, email, telegram_id и «Обращение» (how_to_address) хранятся в зашифрованном виде (BE-02). Поля `phone_idx`, `email_idx`, `telegram_id_idx` — обязательные Blind Index для поиска без расшифровки. `premise_id` — кадастровый номер помещения (строка, FK на `premises.cadastral_number`).
+*Примечание:* `голосование_в_ОСС` на диаграмме — `oss_voting`; `участие_в_голосовании` — `oss_participation` (CORE-05, см. [17-import-voting-participation.md](17-import-voting-participation.md)). Поля phone, email, telegram_id и «Обращение» (how_to_address) хранятся в зашифрованном виде (BE-02). Поля `phone_idx`, `email_idx`, `telegram_id_idx` — обязательные Blind Index для поиска без расшифровки. `premise_id` — кадастровый номер помещения (строка, FK на `premises.cadastral_number`).

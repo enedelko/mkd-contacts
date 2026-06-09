@@ -101,7 +101,6 @@ def chessboard(
     флагами контактов и состоянием ОСС. ПДн не раскрываются.
     """
     with get_db() as db:
-        # Все помещения подъезда с агрегатами по контактам и голосованию
         rows = db.execute(
             text("""
                 SELECT
@@ -110,73 +109,38 @@ def chessboard(
                     p.premises_number,
                     p.floor,
                     p.area,
-                    -- кол-во активных собственников (pending + validated; только они голосуют)
-                    COUNT(DISTINCT c.id) FILTER (WHERE c.status IN ('pending', 'validated') AND c.is_owner = true)  AS cnt_active,
-                    -- кол-во валидированных (на будущее)
-                    COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'validated')                AS cnt_validated,
-                    -- кол-во собственников с barrier_vote = 'for'
-                    COUNT(DISTINCT c.id) FILTER (
-                        WHERE c.status IN ('pending', 'validated') AND c.is_owner = true AND o.barrier_vote = 'for'
-                    )                                                                          AS cnt_vote_for,
-                    -- есть ли хотя бы один собственник с подтверждённой собственностью в ЭД
                     BOOL_OR(c.registered_in_ed = 'owner')
                         FILTER (WHERE c.status IN ('pending', 'validated'))                    AS has_owner_ed,
-                    -- есть ли хотя бы один собственник с аккаунтом ЭД без подтверждённой собственности
-                    BOOL_OR(c.registered_in_ed = 'account')
-                        FILTER (WHERE c.status IN ('pending', 'validated'))                    AS has_account_ed,
-                    -- «зелёный» пул: активные собственники с ЭД owner ИЛИ vote_format = 'paper'
-                    COUNT(DISTINCT c.id) FILTER (
-                        WHERE c.status IN ('pending', 'validated') AND c.is_owner = true
-                          AND (c.registered_in_ed = 'owner' OR o.vote_format = 'paper')
-                    )                                                                          AS cnt_active_green,
-                    -- из пула — с голосом «ЗА»
-                    COUNT(DISTINCT c.id) FILTER (
-                        WHERE c.status IN ('pending', 'validated') AND c.is_owner = true
-                          AND (c.registered_in_ed = 'owner' OR o.vote_format = 'paper')
-                          AND o.barrier_vote = 'for'
-                    )                                                                          AS cnt_vote_for_green,
-                    -- есть ли telegram_id или phone среди активных
+                    COALESCE(ps.participation_share_sum, 0)                                   AS participation_share_sum,
                     BOOL_OR(
                         (c.telegram_id IS NOT NULL AND c.telegram_id != '')
                         OR (c.phone IS NOT NULL AND c.phone != '')
                     ) FILTER (WHERE c.status IN ('pending', 'validated'))                      AS has_tg_or_phone,
-                    -- есть ли email среди активных
                     BOOL_OR(
                         c.email IS NOT NULL AND c.email != ''
                     ) FILTER (WHERE c.status IN ('pending', 'validated'))                      AS has_email
                 FROM premises p
                 LEFT JOIN contacts c ON c.premise_id = p.cadastral_number
-                LEFT JOIN oss_voting o ON o.contact_id = c.id
+                LEFT JOIN (
+                    SELECT premise_id, SUM(ownership_share) AS participation_share_sum
+                    FROM oss_participation
+                    WHERE participated = true
+                    GROUP BY premise_id
+                ) ps ON ps.premise_id = p.cadastral_number
                 WHERE p.entrance = :entrance
                   AND p.floor IS NOT NULL AND TRIM(p.floor) != ''
-                GROUP BY p.cadastral_number, p.premises_type, p.premises_number, p.floor, p.area
+                GROUP BY p.cadastral_number, p.premises_type, p.premises_number, p.floor, p.area,
+                         ps.participation_share_sum
             """),
             {"entrance": entrance},
         ).fetchall()
 
-        # Площадь «ЗА» для подъезда (формула CORE-04)
         total_area_row = db.execute(
             text("SELECT COALESCE(SUM(COALESCE(area, 0)), 0) FROM premises WHERE entrance = :entrance"),
             {"entrance": entrance},
         ).fetchone()
         total_area = float(total_area_row[0] or 0)
 
-        area_for_row = db.execute(
-            text("""
-                SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
-                WHERE p.entrance = :entrance
-                AND EXISTS (
-                    SELECT 1 FROM contacts c
-                    JOIN oss_voting o ON o.contact_id = c.id
-                    WHERE c.premise_id = p.cadastral_number AND c.is_owner = true AND o.barrier_vote = 'for'
-                )
-            """),
-            {"entrance": entrance},
-        ).fetchone()
-        area_voted_for = float(area_for_row[0] or 0)
-
-        # SR-FE06-017: площадь помещений подъезда с контактами в ЭД (pending/validated)
-        # В новой модели учитываем только помещения, где есть контакт с registered_in_ed = 'owner'
         area_ed_row = db.execute(
             text("""
                 SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
@@ -192,21 +156,23 @@ def chessboard(
         ).fetchone()
         area_registered_ed = float(area_ed_row[0] or 0)
 
-        # Площадь помещений подъезда, где есть контакт в ЭД (owner ИЛИ account) — все зарегистрированные
-        area_ed_any_row = db.execute(
+        area_participated_row = db.execute(
             text("""
-                SELECT COALESCE(SUM(COALESCE(p.area, 0)), 0) FROM premises p
+                SELECT COALESCE(SUM(
+                    COALESCE(p.area, 0) * LEAST(COALESCE(ps.share_sum, 0), 1)
+                ), 0)
+                FROM premises p
+                LEFT JOIN (
+                    SELECT premise_id, SUM(ownership_share) AS share_sum
+                    FROM oss_participation
+                    WHERE participated = true
+                    GROUP BY premise_id
+                ) ps ON ps.premise_id = p.cadastral_number
                 WHERE p.entrance = :entrance
-                AND EXISTS (
-                    SELECT 1 FROM contacts c
-                    WHERE c.premise_id = p.cadastral_number
-                      AND c.registered_in_ed IN ('owner', 'account')
-                      AND c.status IN ('pending', 'validated')
-                )
             """),
             {"entrance": entrance},
         ).fetchone()
-        area_registered_ed_any = float(area_ed_any_row[0] or 0)
+        area_participated = float(area_participated_row[0] or 0)
 
     # Группируем по этажам
     floors_map: dict[str, list] = {}
@@ -217,32 +183,20 @@ def chessboard(
             pn,
             fl,
             area,
-            cnt_active,
-            cnt_validated,
-            cnt_vote_for,
             has_owner_ed,
-            has_account_ed,
-            cnt_active_green,
-            cnt_vote_for_green,
+            participation_share_sum,
             has_tg,
             has_email,
         ) = r
-        # contact_state — раскраска по позиции ОСС и ЭД (full/vote_for по «зелёному» пулу: ЭД owner или paper)
-        #   full        — все из пула голосуют «ЗА»
-        #   vote_for    — часть из пула голосует «ЗА»
-        #   registered  — есть owner в ЭД, но нет «ЗА» от пула
-        #   ed_account  — только аккаунт ЭД без подтверждённой собственности (account), без голосов «ЗА»
-        #   none        — нет информации
-        if cnt_active_green > 0 and cnt_vote_for_green >= cnt_active_green:
-            state = "full"
-        elif cnt_vote_for_green and cnt_vote_for_green > 0:
-            state = "vote_for"
-        elif bool(has_owner_ed):
-            state = "registered"
-        elif bool(has_account_ed):
-            state = "ed_account"
-        else:
+        share_sum = float(participation_share_sum or 0)
+        if not bool(has_owner_ed):
             state = "none"
+        elif share_sum >= 1:
+            state = "full"
+        elif share_sum > 0:
+            state = "vote_for"
+        else:
+            state = "registered"
 
         has_tg_or_phone = bool(has_tg)
         has_email_only = bool(has_email) and not has_tg_or_phone
@@ -265,19 +219,16 @@ def chessboard(
         premises.sort(key=lambda p: (p["premises_type"], _premise_sort_key(p["premises_number"])))
         floors_out.append({"floor": fl, "premises": premises})
 
-    ratio = (area_voted_for / total_area) if total_area > 0 else 0.0
     entrance_ed_ratio = (area_registered_ed / total_area) if total_area > 0 else 0.0
-    entrance_ed_any_ratio = (area_registered_ed_any / total_area) if total_area > 0 else 0.0
+    entrance_participation_ratio = (area_participated / total_area) if total_area > 0 else 0.0
 
     return {
         "entrance": entrance,
-        "entrance_area_voted_for": round(area_voted_for, 2),
         "entrance_total_area": round(total_area, 2),
-        "entrance_ratio": round(ratio, 4),
         "entrance_area_registered_ed": round(area_registered_ed, 2),
         "entrance_ed_ratio": round(entrance_ed_ratio, 4),
-        "entrance_area_registered_ed_any": round(area_registered_ed_any, 2),
-        "entrance_ed_any_ratio": round(entrance_ed_any_ratio, 4),
+        "entrance_area_participated": round(area_participated, 2),
+        "entrance_participation_ratio": round(entrance_participation_ratio, 4),
         "floors": floors_out,
     }
 

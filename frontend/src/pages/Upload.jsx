@@ -1,5 +1,5 @@
 /**
- * LOST-02, ADM-07, ADM-08: Загрузка реестра (суперадмин), загрузка контактов, шаблон по подъезду.
+ * LOST-02, ADM-07, ADM-08, ADM-10: Загрузка реестра (суперадмин), контактов, участия в голосовании, шаблон.
  */
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -17,15 +17,21 @@ const EXPECTED_COLUMNS_CONTACTS = [
   'is_owner', 'barrier_vote', 'vote_format', 'registered_in_ed',
 ]
 
+const EXPECTED_COLUMNS_VOTING = ['cadastral_number', 'ownership_share']
+
 export default function Upload() {
   const [fileRegister, setFileRegister] = useState(null)
   const [fileContacts, setFileContacts] = useState(null)
+  const [fileVoting, setFileVoting] = useState(null)
   const [loadingRegister, setLoadingRegister] = useState(false)
   const [loadingContacts, setLoadingContacts] = useState(false)
+  const [loadingVoting, setLoadingVoting] = useState(false)
   const [resultRegister, setResultRegister] = useState(null)
   const [resultContacts, setResultContacts] = useState(null)
+  const [resultVoting, setResultVoting] = useState(null)
   const [structureErrorRegister, setStructureErrorRegister] = useState(null)
   const [structureErrorContacts, setStructureErrorContacts] = useState(null)
+  const [structureErrorVoting, setStructureErrorVoting] = useState(null)
   const [entrance, setEntrance] = useState('')
   const [loadingTemplate, setLoadingTemplate] = useState(false)
   const [templateError, setTemplateError] = useState(null)
@@ -129,6 +135,53 @@ export default function Upload() {
       setResultContacts({ error: err.message || 'Ошибка сети' })
     } finally {
       setLoadingContacts(false)
+    }
+  }
+
+  const handleSubmitVoting = async (e) => {
+    e.preventDefault()
+    if (!fileVoting || !token) {
+      setResultVoting({ error: token ? 'Выберите файл' : 'Требуется авторизация' })
+      return
+    }
+    setLoadingVoting(true)
+    setResultVoting(null)
+    setStructureErrorVoting(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', fileVoting)
+      const res = await fetch('/api/admin/import/voting-participation', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      const { redirectConsent, dataFor403 } = await checkConsentRedirect(res, navigate)
+      if (redirectConsent) return
+      if (dataFor403 !== undefined || res.status === 401 || res.status === 403) {
+        clearAuth()
+        navigate('/login', { replace: true })
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (res.status === 400 && data.expected_columns && data.detected_columns) {
+          setStructureErrorVoting({
+            expected: data.expected_columns,
+            detected: data.detected_columns,
+            detail: data.detail,
+          })
+        } else {
+          setResultVoting({
+            error: typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail || res.status),
+          })
+        }
+        return
+      }
+      setResultVoting(data)
+    } catch (err) {
+      setResultVoting({ error: err.message || 'Ошибка сети' })
+    } finally {
+      setLoadingVoting(false)
     }
   }
 
@@ -243,6 +296,84 @@ export default function Upload() {
             </div>
           )}
           {resultRegister?.error && <div className="import-error" role="alert">{resultRegister.error}</div>}
+        </section>
+      )}
+
+      {isSuperAdmin && (
+        <section className="upload-section" aria-labelledby="voting-heading">
+          <h2 id="voting-heading">Загрузка участия в голосовании</h2>
+          <p>
+            Данные об участии собственников в голосовании ОСС. Помещения должны уже быть в реестре.
+            Строки с одинаковой парой «кадастровый номер + доля» суммируются.
+          </p>
+          <p className="import-warning" role="note">
+            <strong>Внимание:</strong> новый файл полностью заменяет все ранее загруженные данные участия.
+          </p>
+          <p>Примеры доли: <code>1/2</code>, <code>0.333</code>, <code>50%</code>.</p>
+          <ul>{EXPECTED_COLUMNS_VOTING.map((c) => <li key={c}><code>{c}</code></li>)}</ul>
+          <form onSubmit={handleSubmitVoting}>
+            <label htmlFor="voting-file">Файл участия в голосовании</label>
+            <input
+              id="voting-file"
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={(e) => {
+                setFileVoting(e.target.files?.[0] || null)
+                setResultVoting(null)
+                setStructureErrorVoting(null)
+              }}
+              disabled={!token}
+            />
+            <span className="help">{fileVoting ? fileVoting.name : 'Файл не выбран'}</span>
+            <button type="submit" disabled={!fileVoting || loadingVoting}>
+              {loadingVoting ? 'Загрузка…' : 'Загрузить участие'}
+            </button>
+          </form>
+          {structureErrorVoting && (
+            <div className="structure-error" role="alert">
+              <h3>Ошибка структуры</h3>
+              <p>{structureErrorVoting.detail || 'Требуются колонки кадастровый номер и доля в собственности.'}</p>
+              <div className="columns-compare">
+                <div>
+                  <strong>Обнаружены:</strong>
+                  <ul>{structureErrorVoting.detected.map((c, i) => <li key={i}>{c || '(пусто)'}</li>)}</ul>
+                </div>
+                <div>
+                  <strong>Ожидаются:</strong>
+                  <ul>{structureErrorVoting.expected.map((c, i) => <li key={i}>{c}</li>)}</ul>
+                </div>
+              </div>
+            </div>
+          )}
+          {resultVoting && !resultVoting.error && (
+            <div className="import-report" role="status">
+              <h3>Результат</h3>
+              <p>
+                Принято: <strong>{resultVoting.accepted}</strong>, отклонено: <strong>{resultVoting.rejected}</strong>
+              </p>
+              {resultVoting.warnings?.length > 0 && (
+                <details open>
+                  <summary>Предупреждения ({resultVoting.warnings.length})</summary>
+                  <ul>
+                    {resultVoting.warnings.map((w, i) => (
+                      <li key={i}>{w.cadastral_number}: {w.message}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {resultVoting.errors?.length > 0 && (
+                <details>
+                  <summary>Ошибки ({resultVoting.errors.length})</summary>
+                  <ul>
+                    {resultVoting.errors.map((e, i) => (
+                      <li key={i}>Строка {e.row}: {e.message}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+          {resultVoting?.error && <div className="import-error" role="alert">{resultVoting.error}</div>}
         </section>
       )}
 

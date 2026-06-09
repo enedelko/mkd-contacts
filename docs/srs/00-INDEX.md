@@ -31,11 +31,11 @@ BE-01
 LOST-01  ──→  BE-02          ADM-01  ──→  ADM-04
 (схема БД)    (шифрование)   (OAuth)      (управление админами)
  ↓     ↘           ↓              ↓
- ↓      └──────────┴────→  CORE-01  ──→  LOST-02
- ↓              (импорт CSV/XLS)    (страница загрузки)
+ ↓      └──────────┴────→  CORE-01  ──→  LOST-02  ──→  CORE-05  ──→  ADM-10
+ ↓              (импорт CSV/XLS)    (страница загрузки)  (участие в ОСС)  (UI суперадмина)
 ```
 
-CORE-01 невозможен без LOST-01 и BE-02. LOST-02 (UI загрузки) и вызов CORE-01 требуют авторизации админа (ADM-01).
+CORE-01 невозможен без LOST-01 и BE-02. LOST-02 (UI загрузки) и вызов CORE-01 требуют авторизации админа (ADM-01). CORE-05 (импорт участия в голосовании) зависит от реестра помещений (CORE-01); доступ — только суперадмин (ADM-10).
 
 **После LOST-02** (данные помещений в БД — навигация и анкеты). Ссылки по узлам: [04](04-import-chain.md) · [05](05-add-contacts.md) · [06](06-validation.md)
 
@@ -77,6 +77,7 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | 14 | [Cross-object: sessionStorage и Nudge](14-fe05-cross-object-session.md) | FE-05 | sessionStorage для автозаполнения между помещениями, Nudge-модал после анкеты |
 | 15 | [Telegram-бот](15-bot-telegram.md) | BOT-01…04 | Поиск помещения, анкета в боте, личный кабинет, синхронизация с вебом |
 | 16 | [Отказоустойчивость и мониторинг](16-ops02-ops03-graceful-uptime.md) | OPS-02, OPS-03 | Страницы-заглушки при 503, uptime-check и уведомление админов |
+| 17 | [Импорт участия в голосовании](17-import-voting-participation.md) | CORE-05, ADM-10 | Загрузка Excel/CSV (кадастр + доля в собственности), таблица oss_participation, UI суперадмина на странице Upload |
 | — | [Итоговая сводка (Action Items)](99-summary.md) | — | Вопросы к бизнесу, допущения, риски |
 
 ---
@@ -94,6 +95,7 @@ FE-03 и FE-04 опираются на реестр помещений (CORE-01)
 | FE-03, FE-04, … | [05-add-contacts.md](05-add-contacts.md) |
 | VAL-01, CORE-02 | [06-validation.md](06-validation.md) |
 | CORE-04 | [08-core04-quorum.md](08-core04-quorum.md) |
+| CORE-05, ADM-10 | [17-import-voting-participation.md](17-import-voting-participation.md) |
 | ADM-02, ADM-05 | [11-adm02-adm05-moderation-superadmin-audit.md](11-adm02-adm05-moderation-superadmin-audit.md) |
 | ADM-09 | [12-admin-policy-consent.md](12-admin-policy-consent.md) |
 | FE-05 | [14-fe05-cross-object-session.md](14-fe05-cross-object-session.md) |

@@ -24,6 +24,11 @@ from app.import_register import (
     run_import_contacts_only,
     transliterate_entrance_for_filename,
 )
+from app.import_voting_participation import (
+    get_expected_columns_voting_participation,
+    parse_voting_participation_file,
+    run_import_voting_participation,
+)
 from app.jwt_utils import require_admin_with_consent, require_super_admin_with_consent
 
 logger = logging.getLogger(__name__)
@@ -153,6 +158,65 @@ def import_contacts(
         raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
 
     logger.info("Contacts import by sub=%s: accepted=%s rejected=%s", payload.get("sub"), report["accepted"], report["rejected"])
+    return report
+
+
+@router.post("/import/voting-participation")
+def import_voting_participation(
+    request: Request,
+    file: UploadFile = File(...),
+    payload: dict = Depends(require_super_admin_with_consent),
+) -> dict[str, Any]:
+    """
+    CORE-05: Загрузка участия в голосовании ОСС (CSV, XLS, XLSX). Только суперадмин.
+    Обязательные колонки: кадастровый номер, доля в собственности.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    content = file.file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 5 MB)")
+    try:
+        original_headers, canonical_columns, rows = parse_voting_participation_file(
+            content, file.filename or ""
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "Empty" in msg:
+            raise HTTPException(status_code=400, detail=msg) from e
+        raise HTTPException(status_code=400, detail=msg) from e
+    except Exception as e:
+        logger.exception("Voting participation parse error")
+        raise HTTPException(status_code=400, detail="Unsupported file format or corrupted file") from e
+
+    missing = [c for c in ("cadastral_number", "ownership_share") if c not in canonical_columns]
+    if missing:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": f"Required columns missing: {', '.join(missing)}",
+                "expected_columns": get_expected_columns_voting_participation(),
+                "detected_columns": original_headers,
+            },
+        )
+
+    try:
+        client_ip = get_client_ip(request)
+        report = run_import_voting_participation(
+            rows,
+            user_id=payload.get("sub"),
+            client_ip=client_ip,
+        )
+    except Exception as e:
+        logger.exception("Voting participation import failed")
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable") from e
+
+    logger.info(
+        "Voting participation import by sub=%s: accepted=%s rejected=%s",
+        payload.get("sub"),
+        report["accepted"],
+        report["rejected"],
+    )
     return report
 
 
