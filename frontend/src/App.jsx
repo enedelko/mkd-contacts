@@ -208,7 +208,7 @@ function Home() {
           className="chessboard"
           aria-label="Шахматка помещений"
         >
-          <h2 className="chessboard-print-title chessboard-sheet-heading">Подтверждение собственности в ЭД</h2>
+          <h2 className="chessboard-print-title chessboard-sheet-heading">Участие в голосовании ОСС</h2>
           {board.floors.map((fl) => {
             const chunks = []
             for (let i = 0; i < fl.premises.length; i += CHESSBOARD_ROW_LIMIT) {
