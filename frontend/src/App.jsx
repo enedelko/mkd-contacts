@@ -228,7 +228,12 @@ function Home() {
                       <button
                         key={p.premise_id}
                         type="button"
-                        className={`chessboard-cell state-${p.contact_state}`}
+                        className={[
+                          'chessboard-cell',
+                          `state-${p.contact_state}`,
+                          p.has_participation && 'print-voted',
+                          token && p.has_participation && !p.has_owner_ed && 'no-owner-ed',
+                        ].filter(Boolean).join(' ')}
                         onClick={() => handleCellClick(p, fl.floor, p.premises_type)}
                         title={`${p.premises_type} ${p.premises_number}`}
                       >
@@ -254,6 +259,12 @@ function Home() {
             <span className="legend-item"><span className="legend-swatch state-registered" />Собственность подтверждена</span>
             <span className="legend-item"><span className="legend-swatch state-vote_for" />Проголосовала часть собственников</span>
             <span className="legend-item"><span className="legend-swatch state-full" />Проголосовали все</span>
+            {token && (
+              <span className="legend-item">
+                <span className="legend-swatch legend-swatch-no-owner-ed state-vote_for" />
+                Проголосовали, но нет owner в ЭД
+              </span>
+            )}
             <span className="legend-item"><TelegramIcon width={14} height={14} /> Есть Telegram / телефон</span>
             <span className="legend-item"><span className="cell-email">✉</span> Только email</span>
           </div>

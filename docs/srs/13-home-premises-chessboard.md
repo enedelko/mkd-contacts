@@ -81,14 +81,15 @@
 * **SR-FE06-008:** В каждой ячейке отображать: **тип помещения** мелким шрифтом в виде **краткого обозначения** (например «кв.», «парк.»), получаемого на фронтенде из `premises_type` по словарю сокращений и запасным правилам; **номер помещения** крупным шрифтом. Полное значение типа в API и данных не меняется; при необходимости полное название доступно пользователю через подсказку (`title`) ячейки.
 * **SR-FE06-009:** Иконка **Telegram** (лого ТГ) — показывать в ячейке, если у помещения есть хотя бы один контакт с заполненным `telegram_id` или `phone` (логика как в списке контактов: возможность связаться через ТГ по id или по номеру телефона).
 * **SR-FE06-010:** Иконка **письма** (✉ или аналогичная) — показывать в ячейке, если у помещения есть контакт только с email (нет ни `telegram_id`, ни `phone`).
-* **SR-FE06-011:** **Семантика цвета фона** ячейки (единая палитра для всех пользователей, оттенки в CSS): **none** — белый, нет контакта с `registered_in_ed = 'owner'`; **registered** — жёлтый (`#fff9c4`), есть owner в ЭД, сумма `ownership_share` в `oss_participation` = 0; **vote_for** — светло-зелёный (`#c8e6c9`), есть owner, 0 < сумма долей < 1; **full** — тёмно-зелёный (`#66bb6a`), есть owner, сумма долей ≥ 1. Состояние `ed_account` не используется.
+* **SR-FE06-011:** **Семантика цвета фона** (единая палитра, оттенки в CSS): приоритет — участие в `oss_participation`, затем owner в ЭД. **full** — тёмно-зелёный (`#66bb6a`), сумма долей ≥ 1; **vote_for** — светло-зелёный (`#c8e6c9`), 0 < сумма долей < 1; **registered** — жёлтый (`#fff9c4`), сумма долей = 0 и есть owner в ЭД; **none** — белый, сумма долей = 0 и нет owner. Ширина ячейки на экране — 62px (9 в ряд в контейнере до 760px).
 * **SR-FE06-012:** При клике на ячейку, если пользователь **не авторизован** (нет JWT) — переход на `/form` (форма FE-04) с передачей выбранного помещения в `location.state` (premise: `{ premise_id, number }`, entrance, floor, type, hasEntrances).
 * **SR-FE06-013:** При клике на ячейку, если пользователь **авторизован** (админ или суперадмин) — переход на `/admin/contacts/list` с передачей в `location.state` подъезда (`entrance`) и номера помещения (`premises_number`) для автоматического применения фильтров списка контактов.
 * **SR-FE06-014:** Система должна предоставлять публичный (без авторизации) эндпоинт `GET /api/premises/chessboard?entrance=...`, возвращающий данные для шахматки выбранного подъезда.
-* **SR-FE06-015:** Ответ эндпоинта: `contact_state` (none | registered | vote_for | full), флаги контактов; агрегаты подъезда: `entrance_total_area`, `entrance_area_registered_ed`, `entrance_ed_ratio`, `entrance_area_participated`, `entrance_participation_ratio`.
+* **SR-FE06-015:** Ответ эндпоинта: на помещение — `contact_state`, `has_owner_ed`, `has_participation` (`share_sum > 0`), флаги контактов; агрегаты подъезда: `entrance_total_area`, `entrance_area_registered_ed`, `entrance_ed_ratio`, `entrance_area_participated`, `entrance_participation_ratio`.
 * **SR-FE06-016:** В блоке «Статистика ОСС» на главной — «подтвердили собственность» (`ed_ratio`) и «проголосовало» (`participation_ratio`) из `GET /api/buildings/{building_id}/quorum`.
 * **SR-FE06-017:** Над шахматкой — «подтвердили собственность» по подъезду (`entrance_ed_ratio`) и «проголосовало» (`entrance_participation_ratio`).
-* **SR-FE06-018:** При **печати**: состояния **registered**, **vote_for**, **full** — крест; **none** — без креста.
+* **SR-FE06-018:** При **печати**: крест только при `has_participation` (класс `print-voted`); **registered** и **none** без креста.
+* **SR-FE06-019:** Для пользователя с JWT: красная обводка на зелёных ячейках (`has_participation`) при `has_owner_ed = false`; белые и жёлтые без обводки. На печати обводка не выводится.
 
 ### 4. Сценарий использования
 
@@ -110,11 +111,13 @@
 
 **Затрагиваемые сущности:** premises, contacts, oss_participation (CORE-05).
 
-Реализация `contact_state` — по подтверждённой собственности в ЭД и участию из `oss_participation`:
-- **registered** — есть `owner` в ЭД, сумма долей участия = 0.
-- **vote_for** — есть `owner`, 0 < сумма долей < 1.
-- **full** — есть `owner`, сумма долей ≥ 1.
-- **none** — нет `owner` в ЭД.
+Реализация `contact_state` — сначала участие (`oss_participation`), затем owner в ЭД:
+- **full** — сумма долей ≥ 1.
+- **vote_for** — 0 < сумма долей < 1.
+- **registered** — сумма долей = 0, есть `owner` в ЭД.
+- **none** — сумма долей = 0, нет `owner`.
+
+`has_participation` = `share_sum > 0`. `has_owner_ed` — для обводки админа (SR-FE06-019).
 
 Флаги `has_telegram_or_phone` / `has_email_only` определяются по факту наличия непустого зашифрованного значения в соответствующих полях (phone, telegram_id, email) среди активных контактов помещения — без расшифровки ПДн (достаточно проверки IS NOT NULL / != '').
 
@@ -141,6 +144,8 @@
           "premises_type": "Квартира",
           "premises_number": "96",
           "contact_state": "full",
+          "has_owner_ed": true,
+          "has_participation": true,
           "has_telegram_or_phone": true,
           "has_email_only": false
         },
@@ -149,6 +154,8 @@
           "premises_type": "Квартира",
           "premises_number": "97",
           "contact_state": "none",
+          "has_owner_ed": false,
+          "has_participation": false,
           "has_telegram_or_phone": false,
           "has_email_only": false
         }

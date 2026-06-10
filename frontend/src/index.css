@@ -6,6 +6,7 @@ body { margin: 0; font-family: system-ui, sans-serif; padding: 1rem 0; backgroun
 .app-header-inner h1 { margin: 0 0 0.5rem; }
 .app-header-inner nav { margin: 0; }
 .app-body { max-width: 720px; margin: 0 auto; padding: 1rem; }
+.app-body:has(.chessboard) { max-width: 760px; }
 .app-body:has(.admin-contacts-list-page) { max-width: 1200px; }
 nav { margin: 0.5rem 0; }
 nav a { margin-right: 1rem; }
@@ -218,7 +219,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   margin-bottom: 2px;
 }
 .chessboard-row-floor {
@@ -238,8 +239,8 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 68px;
-  min-height: 56px;
+  width: 62px;
+  min-height: 52px;
   border: var(--chessboard-cell-border) solid #bdbdbd;
   border-radius: 4px;
   cursor: pointer;
@@ -250,6 +251,8 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   background: #fff;
 }
 .chessboard-cell:hover { box-shadow: 0 0 0 2px #1976d2; }
+.chessboard-cell.no-owner-ed { box-shadow: 0 0 0 2px #c62828; }
+.chessboard-cell.no-owner-ed:hover { box-shadow: 0 0 0 2px #c62828, 0 0 0 4px #1976d2; }
 .chessboard-cell:focus-visible { outline: 2px solid #1976d2; outline-offset: 1px; }
 .chessboard-cell.state-none,
 .legend-swatch.state-none { background: #fff; }
@@ -269,7 +272,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   max-width: 100%;
 }
 .chessboard-cell .cell-number {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 500;
   line-height: 1.2;
 }
@@ -279,6 +282,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .legend-title { font-weight: 600; }
 .legend-item { display: inline-flex; align-items: center; gap: 4px; }
 .legend-swatch { display: inline-block; width: 14px; height: 14px; border: var(--chessboard-cell-border) solid #bdbdbd; border-radius: 2px; }
+.legend-swatch.legend-swatch-no-owner-ed { box-shadow: 0 0 0 2px #c62828; }
 @page {
   size: A4;
   margin: 10mm;
@@ -365,14 +369,10 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     font-weight: 500;
     color: #000 !important;
   }
-  .chessboard-cell.state-registered .cell-type,
-  .chessboard-cell.state-vote_for .cell-type,
-  .chessboard-cell.state-full .cell-type {
+  .chessboard-cell.print-voted .cell-type {
     font-size: 6pt !important;
   }
-  .chessboard-cell.state-registered .cell-number,
-  .chessboard-cell.state-vote_for .cell-number,
-  .chessboard-cell.state-full .cell-number {
+  .chessboard-cell.print-voted .cell-number {
     font-size: 16pt !important;
     font-weight: 200 !important;
     color: #000 !important;
@@ -384,10 +384,8 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     position: relative;
     z-index: 1;
   }
-  /* Крест: две линии под ±30°; длина = --cb-cross-scale × hypot(W,H) */
-  .chessboard .chessboard-cell.state-registered::before,
-  .chessboard .chessboard-cell.state-vote_for::before,
-  .chessboard .chessboard-cell.state-full::before {
+  /* Крест: только проголосовавшие (print-voted) */
+  .chessboard .chessboard-cell.print-voted::before {
     content: '';
     position: absolute;
     left: 50%;
@@ -400,9 +398,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     pointer-events: none;
     border-radius: 0;
   }
-  .chessboard .chessboard-cell.state-registered::after,
-  .chessboard .chessboard-cell.state-vote_for::after,
-  .chessboard .chessboard-cell.state-full::after {
+  .chessboard .chessboard-cell.print-voted::after {
     content: '';
     position: absolute;
     left: 50%;

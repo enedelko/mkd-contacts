@@ -189,14 +189,16 @@ def chessboard(
             has_email,
         ) = r
         share_sum = float(participation_share_sum or 0)
-        if not bool(has_owner_ed):
-            state = "none"
-        elif share_sum >= 1:
+        owner_ed = bool(has_owner_ed)
+        has_participation = share_sum > 0
+        if share_sum >= 1:
             state = "full"
         elif share_sum > 0:
             state = "vote_for"
-        else:
+        elif owner_ed:
             state = "registered"
+        else:
+            state = "none"
 
         has_tg_or_phone = bool(has_tg)
         has_email_only = bool(has_email) and not has_tg_or_phone
@@ -206,6 +208,8 @@ def chessboard(
             "premises_type": pt or "",
             "premises_number": pn or "",
             "contact_state": state,
+            "has_owner_ed": owner_ed,
+            "has_participation": has_participation,
             "has_telegram_or_phone": has_tg_or_phone,
             "has_email_only": has_email_only,
         }
