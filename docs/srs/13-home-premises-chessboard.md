@@ -88,7 +88,7 @@
 * **SR-FE06-015:** Ответ эндпоинта: на помещение — `contact_state`, `has_owner_ed`, `has_participation` (`share_sum > 0`), флаги контактов; агрегаты подъезда: `entrance_total_area`, `entrance_area_registered_ed`, `entrance_ed_ratio`, `entrance_area_participated`, `entrance_participation_ratio`.
 * **SR-FE06-016:** В блоке «Статистика ОСС» на главной — «подтвердили собственность» (`ed_ratio`) и «проголосовало» (`participation_ratio`) из `GET /api/buildings/{building_id}/quorum`.
 * **SR-FE06-017:** Над шахматкой — «подтвердили собственность» по подъезду (`entrance_ed_ratio`) и «проголосовало» (`entrance_participation_ratio`).
-* **SR-FE06-018:** При **печати**: заголовок листа **«Участие в голосовании ОСС»**; крест только при `has_participation` (класс `print-voted`); **registered** и **none** без креста.
+* **SR-FE06-018:** При **печати** (A4, до 20 этажей × 9 помещений на лист с заголовком): заголовок **«Участие в голосовании ОСС»**; в каждой ячейке — тип помещения и номер. Проголосовавшие (`has_participation`, класс `print-voted`): на монохромном выводе (`not (color-gamut)`) — белый фон и крест; на цветном (`color-gamut: srgb`) — фон `#c8e6c9`, без креста. **registered** и **none** без креста и без зелёного фона. Возможности принтера определяются через CSS `color-gamut` (зависит от браузера и драйвера).
 * **SR-FE06-019:** Для пользователя с JWT: красная обводка на зелёных ячейках (`has_participation`) при `has_owner_ed = false`; белые и жёлтые без обводки. На печати обводка не выводится.
 
 ### 4. Сценарий использования

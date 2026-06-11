@@ -285,7 +285,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
 .legend-swatch.legend-swatch-no-owner-ed { box-shadow: 0 0 0 2px #c62828; }
 @page {
   size: A4;
-  margin: 10mm;
+  margin: 8mm;
 }
 
 @media print {
@@ -316,9 +316,8 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     margin: 0 !important;
     padding: 0 !important;
   }
-  /* Заголовок листа +⅓ к прежнему 17.16pt; номер этажа в ряду компактнее */
   .chessboard-print-title.chessboard-sheet-heading {
-    font-size: calc(17.16pt * 4 / 3) !important;
+    font-size: 24pt !important;
     font-weight: 200;
     color: #000;
   }
@@ -329,7 +328,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   }
   .chessboard-print-title {
     display: block !important;
-    margin: 0 0 2mm !important;
+    margin: 0 0 1mm !important;
   }
   .chessboard {
     margin: 0 !important;
@@ -337,15 +336,14 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
   .chessboard-floor {
     margin-bottom: 0 !important;
   }
-  /* ~20 визуальных рядов на A4 вместе с заголовком: узкие интервалы */
+  /* ~20 визуальных рядов на A4 вместе с заголовком: тип + номер в ячейке */
   .chessboard-row {
-    gap: 0.35mm !important;
-    margin-bottom: 0.35mm !important;
+    gap: 0.15mm !important;
+    margin-bottom: 0.15mm !important;
   }
-  /* Печать: без рамок у ячеек; номер 16pt; низкая строка */
   .chessboard-cell {
-    --cb-print-w: 18mm;
-    --cb-print-h: 12mm;
+    --cb-print-w: 20.4mm;
+    --cb-print-h: 12.87mm;
     --cb-cross-scale: 0.85;
     border: none !important;
     outline: none !important;
@@ -353,13 +351,14 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     box-shadow: none !important;
     width: var(--cb-print-w) !important;
     min-height: var(--cb-print-h) !important;
-    height: auto !important;
-    max-height: none !important;
-    padding: 0.2mm 0.35mm !important;
+    height: var(--cb-print-h) !important;
+    max-height: var(--cb-print-h) !important;
+    padding: 0.1mm 0.25mm !important;
     border-radius: 0 !important;
+    overflow: hidden;
   }
   .chessboard-cell .cell-type {
-    font-size: 6.5pt !important;
+    font-size: 7pt !important;
     line-height: 1 !important;
     color: #000 !important;
   }
@@ -370,7 +369,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     color: #000 !important;
   }
   .chessboard-cell.print-voted .cell-type {
-    font-size: 6pt !important;
+    font-size: 7pt !important;
   }
   .chessboard-cell.print-voted .cell-number {
     font-size: 16pt !important;
@@ -384,7 +383,7 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     position: relative;
     z-index: 1;
   }
-  /* Крест: только проголосовавшие (print-voted) */
+  /* Крест на монохромном выводе (not color-gamut): только print-voted */
   .chessboard .chessboard-cell.print-voted::before {
     content: '';
     position: absolute;
@@ -410,6 +409,18 @@ nav .nav-logout { background: none; border: none; color: #c62828; cursor: pointe
     z-index: 0;
     pointer-events: none;
     border-radius: 0;
+  }
+}
+
+/* Цветной принтер (color-gamut: srgb+): зелёный фон вместо креста */
+@media print and (color-gamut: srgb) {
+  .chessboard-cell.print-voted {
+    background: #c8e6c9 !important;
+    border-radius: 2mm !important;
+  }
+  .chessboard .chessboard-cell.print-voted::before,
+  .chessboard .chessboard-cell.print-voted::after {
+    display: none;
   }
 }
 /* FE-05: уведомление об автозаполнении */
